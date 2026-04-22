@@ -2,25 +2,32 @@
 
 namespace игра_для_проги.Model
 {
-    public class Point3D
+    public class Point
     {
         public double X { get; set; }
         public double Y { get; set; }
         public double Z { get; set; }
 
-        public Point3D(double x, double y, double z)
+        public Point(double x, double y, double z)
         {
-            X = x; Y = y; Z = z;
+            X = x;
+            Y = y;
+            Z = z;
         }
 
-        // Магия тригонометрии для поворота точки
+        // --- ДОБАВЬ ИЛИ ОБНОВИ ЭТОТ МЕТОД ---
         public void RotateY(double angle)
         {
-            double rad = angle * Math.PI / 180;
+            // Математика поворота вокруг вертикальной оси (Y)
+            double cos = Math.Cos(angle);
+            double sin = Math.Sin(angle);
+
             double oldX = X;
             double oldZ = Z;
-            X = oldX * Math.Cos(rad) - oldZ * Math.Sin(rad);
-            Z = oldX * Math.Sin(rad) + oldZ * Math.Cos(rad);
+
+            // Формула изменения координат X и Z при вращении
+            X = oldX * cos + oldZ * sin;
+            Z = -oldX * sin + oldZ * cos;
         }
     }
 }

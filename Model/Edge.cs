@@ -1,15 +1,17 @@
-﻿namespace игра_для_проги.Model
+﻿using игра_для_проги.Model;
+
+namespace игра_для_проги.Model
 {
-    // Класс для линии (ребра), которая соединяет две точки
     public class Edge
     {
-        public Point3D Start { get; set; }
-        public Point3D End { get; set; }
+        // Используем Point вместо Point3D
+        public Point P1 { get; set; }
+        public Point P2 { get; set; }
 
-        public Edge(Point3D start, Point3D end)
+        public Edge(Point p1, Point p2)
         {
-            Start = start;
-            End = end;
+            P1 = p1;
+            P2 = p2;
         }
     }
 }
