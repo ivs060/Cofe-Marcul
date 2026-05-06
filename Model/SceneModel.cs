@@ -1,24 +1,151 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 
 namespace игра_для_проги.Model
 {
+    public enum FaceLayer
+    {
+        Floor = 0,
+        Wall = 1,
+        WallDetail = 2,
+        Furniture = 3,
+        SmallDetail = 4
+    }
+
+    public class Camera3D
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+
+        public double Yaw { get; set; }
+        public double Pitch { get; set; }
+
+        public Camera3D()
+        {
+            X = 0;
+            Y = 0;
+            Z = 75;
+
+            Yaw = 0;
+            Pitch = 0;
+        }
+
+        public void Set(double x, double y, double z, double yaw)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+
+            Yaw = yaw;
+            Pitch = 0;
+        }
+    }
+
+    public class Face
+    {
+        public List<int> PointIndices { get; set; }
+
+        public string TextureKey { get; set; }
+
+        public Color SolidColor { get; set; }
+
+        public FaceLayer Layer { get; set; }
+
+        public Face(
+            List<int> pointIndices,
+            string textureKey = null,
+            Color solidColor = default,
+            FaceLayer layer = FaceLayer.Furniture)
+        {
+            PointIndices = pointIndices ?? new List<int>();
+            TextureKey = textureKey;
+
+            if (solidColor == default)
+                SolidColor = Color.Empty;
+            else
+                SolidColor = solidColor;
+
+            Layer = layer;
+        }
+    }
+
+    public class BoxCollider
+    {
+        public double MinX { get; private set; }
+        public double MinZ { get; private set; }
+
+        public double MaxX { get; private set; }
+        public double MaxZ { get; private set; }
+
+        public string Name { get; private set; }
+
+        public bool Enabled { get; set; }
+
+        public BoxCollider(
+            double minX,
+            double minZ,
+            double maxX,
+            double maxZ,
+            string name = null)
+        {
+            MinX = Math.Min(minX, maxX);
+            MaxX = Math.Max(minX, maxX);
+
+            MinZ = Math.Min(minZ, maxZ);
+            MaxZ = Math.Max(minZ, maxZ);
+
+            Name = name;
+            Enabled = true;
+        }
+    }
+
     public class SceneModel
     {
-        // Списки теперь хранят объекты типа Point
-        public List<Point> Points { get; private set; } = new List<Point>();
-        public List<Edge> Edges { get; private set; } = new List<Edge>();
+        public List<Point3D> Points { get; private set; }
+        public List<Edge> Edges { get; private set; }
+        public List<Face> Faces { get; private set; }
+        public List<BoxCollider> Colliders { get; private set; }
 
         public event EventHandler SceneChanged;
 
-        public void AddPoint(double x, double y, double z)
+        public SceneModel()
         {
-            Points.Add(new Point(x, y, z));
+            Points = new List<Point3D>();
+            Edges = new List<Edge>();
+            Faces = new List<Face>();
+            Colliders = new List<BoxCollider>();
         }
 
-        public void AddEdge(Point p1, Point p2)
+        public int AddPoint(double x, double y, double z)
+        {
+            Points.Add(new Point3D(x, y, z));
+            return Points.Count - 1;
+        }
+
+        public void AddEdge(Point3D p1, Point3D p2)
         {
             Edges.Add(new Edge(p1, p2));
+        }
+
+        public void AddFace(
+            List<int> pointIndices,
+            string textureKey = null,
+            Color solidColor = default,
+            FaceLayer layer = FaceLayer.Furniture)
+        {
+            Faces.Add(new Face(pointIndices, textureKey, solidColor, layer));
+        }
+
+        public void AddCollider(
+            double minX,
+            double minZ,
+            double maxX,
+            double maxZ,
+            string name = null)
+        {
+            Colliders.Add(new BoxCollider(minX, minZ, maxX, maxZ, name));
         }
 
         public void NotifyChanged()

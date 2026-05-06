@@ -1,14 +1,15 @@
-﻿using игра_для_проги.Model;
+﻿using System;
+using игра_для_проги.Model;
 
 namespace игра_для_проги.Model
 {
     public class Edge
     {
-        // Используем Point вместо Point3D
-        public Point P1 { get; set; }
-        public Point P2 { get; set; }
+        // Указываем тип Point3D вместо Point
+        public Point3D P1 { get; set; }
+        public Point3D P2 { get; set; }
 
-        public Edge(Point p1, Point p2)
+        public Edge(Point3D p1, Point3D p2)
         {
             P1 = p1;
             P2 = p2;
