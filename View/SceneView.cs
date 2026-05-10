@@ -469,7 +469,10 @@ namespace игра_для_проги.View
                 DrawMaterialPattern(g, face, points);
             }
 
-            DrawSoftOutline(g, points);
+            if (ShouldDrawOutline(face, points))
+            {
+                DrawSoftOutline(g, points);
+            }
         }
 
         private bool ShouldDrawPattern(Face face, PointF[] points)
@@ -484,6 +487,32 @@ namespace игра_для_проги.View
 
             if (area < 1500)
                 return false;
+
+            return true;
+        }
+
+        private bool ShouldDrawOutline(Face face, PointF[] points)
+        {
+            double area = Math.Abs(GetPolygonArea(points));
+
+            // Совсем микроскопические грани не обводим.
+            // Иначе мелкие буквы, этикетки и значки превращаются в грязь.
+            if (area < 45)
+                return false;
+
+            // SmallDetail — это как раз этикетки, буквы, мелкие элементы,
+            // крышки и тонкие декоративные детали.
+            if (face.Layer == FaceLayer.SmallDetail)
+            {
+                return area >= 420;
+            }
+
+            // WallDetail тоже часто плоский и декоративный.
+            // На мелких деталях outline только мешает.
+            if (face.Layer == FaceLayer.WallDetail)
+            {
+                return area >= 650;
+            }
 
             return true;
         }
@@ -521,29 +550,29 @@ namespace игра_для_проги.View
             switch (face.TextureKey)
             {
                 case "floor":
-                    return Color.FromArgb(126, 118, 101);
+                    return Color.FromArgb(76, 68, 58);
 
                 case "wall":
-                    return Color.FromArgb(188, 178, 154);
+                    return Color.FromArgb(128, 112, 92);
 
                 case "bar":
-                    return Color.FromArgb(145, 86, 42);
+                    return Color.FromArgb(82, 36, 26);
 
                 case "wood_dark":
-                    return Color.FromArgb(82, 49, 28);
+                    return Color.FromArgb(48, 25, 18);
 
                 case "mid_wood":
-                    return Color.FromArgb(105, 66, 38);
+                    return Color.FromArgb(72, 38, 26);
 
                 case "fridge":
-                    return Color.FromArgb(205, 208, 212);
+                    return Color.FromArgb(126, 132, 136);
 
                 case "black":
                 case "screen":
-                    return Color.FromArgb(12, 16, 22);
+                    return Color.FromArgb(6, 8, 10);
 
                 default:
-                    return Color.DimGray;
+                    return Color.FromArgb(58, 54, 56);
             }
         }
 
