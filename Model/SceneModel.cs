@@ -9,8 +9,14 @@ namespace игра_для_проги.Model
         Floor = 0,
         Wall = 1,
         WallDetail = 2,
-        Furniture = 3,
-        SmallDetail = 4
+
+        // Детали рисунков на постерах.
+        // Нужен, чтобы кружка/пар были поверх бумаги постера,
+        // но не спорили с мебелью и не мерцали.
+        PosterDetail = 3,
+
+        Furniture = 4,
+        SmallDetail = 5
     }
 
     public class Camera3D
@@ -52,12 +58,17 @@ namespace игра_для_проги.Model
         public Color SolidColor { get; set; }
 
         public FaceLayer Layer { get; set; }
+        public bool TwoSided { get; set; }
+
+        // true = грань рисуется с обеих сторон.
+        // Нужно для плоских AddQuad-деталей: экранов, панелей, этикеток, масок.
 
         public Face(
-            List<int> pointIndices,
-            string textureKey = null,
-            Color solidColor = default,
-            FaceLayer layer = FaceLayer.Furniture)
+    List<int> pointIndices,
+    string textureKey = null,
+    Color solidColor = default,
+    FaceLayer layer = FaceLayer.Furniture,
+    bool twoSided = false)
         {
             PointIndices = pointIndices ?? new List<int>();
             TextureKey = textureKey;
@@ -68,6 +79,7 @@ namespace игра_для_проги.Model
                 SolidColor = solidColor;
 
             Layer = layer;
+            TwoSided = twoSided;
         }
     }
 
@@ -130,12 +142,13 @@ namespace игра_для_проги.Model
         }
 
         public void AddFace(
-            List<int> pointIndices,
-            string textureKey = null,
-            Color solidColor = default,
-            FaceLayer layer = FaceLayer.Furniture)
+    List<int> pointIndices,
+    string textureKey = null,
+    Color solidColor = default,
+    FaceLayer layer = FaceLayer.Furniture,
+    bool twoSided = false)
         {
-            Faces.Add(new Face(pointIndices, textureKey, solidColor, layer));
+            Faces.Add(new Face(pointIndices, textureKey, solidColor, layer, twoSided));
         }
 
         public void AddCollider(

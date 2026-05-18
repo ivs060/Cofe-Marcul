@@ -11,7 +11,7 @@ namespace игра_для_проги.View
     {
         private const double NearClip = 0.7;
         private const float ProjectionScale = 500f;
-        private const double DepthEpsilon = 0.8;
+        private const double DepthEpsilon = 3.0;
 
         private struct ViewPoint
         {
@@ -219,6 +219,9 @@ namespace игра_для_проги.View
 
         private int GetRenderGroup(Face face)
         {
+            if (face.TextureKey == "wood_boards")
+                return 2;
+
             if (face.Layer == FaceLayer.Floor)
                 return 0;
 
@@ -297,16 +300,21 @@ namespace игра_для_проги.View
 
         private bool ShouldCullBackFace(Face face)
         {
-            // Не трогаем пол и стены.
-            // У них порядок точек может быть разный, и если их отсекать,
-            // они начнут пропадать.
+            // Двусторонние плоские детали не отсекаем.
+            // Это чинит исчезающие панели кофемашины, экраны, этикетки,
+            // декоративные фасады, царапины, доски и паутины.
+            if (face.TwoSided)
+                return false;
+
+            // Пол и стены не трогаем.
             if (face.Layer == FaceLayer.Floor)
                 return false;
 
             if (face.Layer == FaceLayer.Wall)
                 return false;
 
-            // У деталей и мебели задние грани можно отсекать.
+            // Закрытые 3D-блоки можно отсекать.
+            // Это помогает не видеть задние стороны кубов.
             return face.Layer == FaceLayer.WallDetail ||
                    face.Layer == FaceLayer.Furniture ||
                    face.Layer == FaceLayer.SmallDetail;
@@ -477,6 +485,12 @@ namespace игра_для_проги.View
 
         private bool ShouldDrawPattern(Face face, PointF[] points)
         {
+            if (face == null)
+                return false;
+
+            if (face.TextureKey == "wood_boards")
+                return true;
+
             if (face.Layer == FaceLayer.SmallDetail)
                 return false;
 
@@ -493,22 +507,23 @@ namespace игра_для_проги.View
 
         private bool ShouldDrawOutline(Face face, PointF[] points)
         {
+            if (face == null)
+                return false;
+
+            // Невидимый контур для столов и стульев
+            if (face.TextureKey == "no_outline")
+                return false;
+
             double area = Math.Abs(GetPolygonArea(points));
 
-            // Совсем микроскопические грани не обводим.
-            // Иначе мелкие буквы, этикетки и значки превращаются в грязь.
             if (area < 45)
                 return false;
 
-            // SmallDetail — это как раз этикетки, буквы, мелкие элементы,
-            // крышки и тонкие декоративные детали.
             if (face.Layer == FaceLayer.SmallDetail)
             {
                 return area >= 420;
             }
 
-            // WallDetail тоже часто плоский и декоративный.
-            // На мелких деталях outline только мешает.
             if (face.Layer == FaceLayer.WallDetail)
             {
                 return area >= 650;
@@ -539,12 +554,10 @@ namespace игра_для_проги.View
         {
             if (face.SolidColor != Color.Empty)
             {
-                return Color.FromArgb(
-                    255,
-                    face.SolidColor.R,
-                    face.SolidColor.G,
-                    face.SolidColor.B
-                );
+                // ВАЖНО:
+                // сохраняем исходный alpha,
+                // иначе полупрозрачные царапины/паутина становятся белыми и жирными.
+                return face.SolidColor;
             }
 
             switch (face.TextureKey)
@@ -612,6 +625,10 @@ namespace игра_для_проги.View
                             DrawWoodPattern(g, points);
                             break;
 
+                        case "wood_boards":
+                            DrawWoodBoardsPattern(g, points);
+                            break;
+
                         case "fridge":
                             DrawMetalPattern(g, points);
                             break;
@@ -625,6 +642,46 @@ namespace игра_для_проги.View
                 finally
                 {
                     g.Restore(state);
+                }
+            }
+        }
+
+        private void DrawWoodBoardsPattern(Graphics g, PointF[] p)
+        {
+            if (p == null || p.Length != 4)
+                return;
+
+            double area = Math.Abs(GetPolygonArea(p));
+
+            if (area < 220)
+                return;
+
+            using (Pen seamPen = new Pen(Color.FromArgb(155, 145, 96, 58), 1))
+            using (Pen softPen = new Pen(Color.FromArgb(85, 174, 126, 78), 1))
+            {
+                int boardCount = 5;
+
+                for (int i = 1; i < boardCount; i++)
+                {
+                    float t = i / (float)boardCount;
+
+                    PointF a = Lerp(p[0], p[3], t);
+                    PointF b = Lerp(p[1], p[2], t);
+
+                    g.DrawLine(seamPen, a, b);
+                }
+
+                for (int i = 0; i < boardCount; i++)
+                {
+                    float t = (i + 0.5f) / boardCount;
+
+                    PointF a = Lerp(p[0], p[3], t);
+                    PointF b = Lerp(p[1], p[2], t);
+
+                    PointF start = Lerp(a, b, 0.08f);
+                    PointF end = Lerp(a, b, 0.92f);
+
+                    g.DrawLine(softPen, start, end);
                 }
             }
         }
