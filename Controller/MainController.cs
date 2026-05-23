@@ -34,6 +34,48 @@ namespace игра_для_проги.Controller
         private readonly List<int> _shelfReturnedCupPoints = new List<int>();
         private readonly List<double> _shelfReturnedCupBaseY = new List<double>();
 
+        // Один одноразовый стакан на полке исчезает после того, как игрок взял его для заказа Тии.
+        private readonly List<int> _takeawayShelfCupPoints = new List<int>();
+        private readonly List<double> _takeawayShelfCupBaseY = new List<double>();
+
+        // 3D-стакан на поддоне кофемашины появляется только во время приготовления кофе.
+        private readonly List<int> _coffeeMachineCupPoints = new List<int>();
+        private readonly List<double> _coffeeMachineCupBaseY = new List<double>();
+        private readonly List<int> _coffeeMachineCupCoffeePoints = new List<int>();
+        private readonly List<double> _coffeeMachineCupCoffeeBaseY = new List<double>();
+        private readonly List<int> _coffeeMachineCupCoffeeTopPoints = new List<int>();
+        private double _coffeeMachineCupCoffeeBottomY;
+        private double _coffeeMachineCupCoffeeTopY;
+
+        // Носик/головка малинового сиропа анимируются отдельной группой точек.
+        private readonly List<int> _raspberryPumpPoints = new List<int>();
+        private readonly List<double> _raspberryPumpBaseY = new List<double>();
+
+        // Передний мешок с кофейными зёрнами можно временно спрятать,
+        // а рядом с кофемашиной есть отдельная группа для анимации заправки.
+        private readonly List<int> _frontCoffeeBeanBagPoints = new List<int>();
+        private readonly List<double> _frontCoffeeBeanBagBaseY = new List<double>();
+        private readonly List<int> _coffeeRefillBagPoints = new List<int>();
+        private readonly List<double> _coffeeRefillBagBaseX = new List<double>();
+        private readonly List<double> _coffeeRefillBagBaseY = new List<double>();
+        private readonly List<double> _coffeeRefillBagBaseZ = new List<double>();
+        private readonly List<int> _coffeeRefillBeansPoints = new List<int>();
+        private readonly List<double> _coffeeRefillBeansBaseX = new List<double>();
+        private readonly List<double> _coffeeRefillBeansBaseY = new List<double>();
+        private readonly List<double> _coffeeRefillBeansBaseZ = new List<double>();
+
+        // Пена в раковине появляется во время анимации мойки кружек.
+        private readonly List<int> _sinkWashFoamPoints = new List<int>();
+        private readonly List<double> _sinkWashFoamBaseX = new List<double>();
+        private readonly List<double> _sinkWashFoamBaseY = new List<double>();
+        private readonly List<double> _sinkWashFoamBaseZ = new List<double>();
+
+        // Струи воды из крана во время мойки.
+        private readonly List<int> _sinkWashWaterPoints = new List<int>();
+        private readonly List<double> _sinkWashWaterBaseX = new List<double>();
+        private readonly List<double> _sinkWashWaterBaseY = new List<double>();
+        private readonly List<double> _sinkWashWaterBaseZ = new List<double>();
+
         // Изображение на телевизоре сначала спрятано.
         // После включения ТВ появляется кружка кофе и подпись Cafe Marcul.
         private readonly List<int> _tvScreenContentPoints = new List<int>();
@@ -61,6 +103,7 @@ namespace игра_для_проги.Controller
         private double _clientPrevWorldX = 250;
         private double _clientPrevWorldZ = 300;
         private bool _clientWalkingNow;
+        private bool _tiaBarPassageBlocked;
 
         public Camera3D Camera { get; private set; }
 
@@ -114,6 +157,11 @@ namespace игра_для_проги.Controller
             AddWallMenu();
             AddHorrorTvStandAndTv();
             SetTvScreenOn(false);
+            SetCoffeeMachineCupState(false, 0);
+            SetRaspberryPumpPressed(0);
+            SetCoffeeBeanFrontBagVisible(true);
+            SetCoffeeMachineRefillAnimation(false, 0);
+            SetSinkWashAnimation(false, 0);
 
             AddEntranceRug();
             AddWallVentOnRightWall();
@@ -196,6 +244,33 @@ namespace игра_для_проги.Controller
             _table2StainBaseY.Clear();
             _shelfReturnedCupPoints.Clear();
             _shelfReturnedCupBaseY.Clear();
+            _takeawayShelfCupPoints.Clear();
+            _takeawayShelfCupBaseY.Clear();
+            _coffeeMachineCupPoints.Clear();
+            _coffeeMachineCupBaseY.Clear();
+            _coffeeMachineCupCoffeePoints.Clear();
+            _coffeeMachineCupCoffeeBaseY.Clear();
+            _coffeeMachineCupCoffeeTopPoints.Clear();
+            _raspberryPumpPoints.Clear();
+            _raspberryPumpBaseY.Clear();
+            _frontCoffeeBeanBagPoints.Clear();
+            _frontCoffeeBeanBagBaseY.Clear();
+            _coffeeRefillBagPoints.Clear();
+            _coffeeRefillBagBaseX.Clear();
+            _coffeeRefillBagBaseY.Clear();
+            _coffeeRefillBagBaseZ.Clear();
+            _coffeeRefillBeansPoints.Clear();
+            _coffeeRefillBeansBaseX.Clear();
+            _coffeeRefillBeansBaseY.Clear();
+            _coffeeRefillBeansBaseZ.Clear();
+            _sinkWashFoamPoints.Clear();
+            _sinkWashFoamBaseX.Clear();
+            _sinkWashFoamBaseY.Clear();
+            _sinkWashFoamBaseZ.Clear();
+            _sinkWashWaterPoints.Clear();
+            _sinkWashWaterBaseX.Clear();
+            _sinkWashWaterBaseY.Clear();
+            _sinkWashWaterBaseZ.Clear();
             _tvScreenContentPoints.Clear();
             _tvScreenContentBaseY.Clear();
             _tvAnimatedScreenPoints.Clear();
@@ -578,6 +653,7 @@ namespace игра_для_проги.Controller
             }
 
             AddFridgeHandle();
+            AddMilkCartonOnFridge();
 
             AddRectOnXPlane(-249.25, -27, 542, 58, 545, Color.FromArgb(74, 78, 80), FaceLayer.WallDetail);
             AddRectOnXPlane(-249.20, 48, 526, 56, 540, dirt, FaceLayer.WallDetail);
@@ -586,9 +662,58 @@ namespace игра_для_проги.Controller
 
         private void AddFridgeHandle()
         {
-            AddBlock(-249.2, -25, 545, -245.6, 55, 553, null, HorrorColor.ColdSteel, FaceLayer.Furniture);
-            AddBlock(-245.8, -22, 552.2, -244.8, 52, 553.6, null, HorrorColor.SteelDark, FaceLayer.SmallDetail);
-            AddBlock(-249.4, -22, 546.0, -248.8, 52, 552.0, null, Color.FromArgb(178, 180, 182), FaceLayer.SmallDetail);
+            // Ручку смещаем чуть правее по дверце, чтобы она не пересекалась
+            // с изображением пакета молока.
+            AddBlock(-249.2, -25, 556, -245.6, 55, 564, null, HorrorColor.ColdSteel, FaceLayer.Furniture);
+            AddBlock(-245.8, -22, 563.2, -244.8, 52, 564.6, null, HorrorColor.SteelDark, FaceLayer.SmallDetail);
+            AddBlock(-249.4, -22, 557.0, -248.8, 52, 563.0, null, Color.FromArgb(178, 180, 182), FaceLayer.SmallDetail);
+        }
+
+        private void AddMilkCartonOnFridge()
+        {
+            // Упрощённая и более читаемая плоская упаковка молока:
+            // общий силуэт пакета, большой синий нижний блок и компактная надпись Milk.
+            double xPlane = -249.14;
+            double yBottom = -22.0;
+            double yTop = 24.0;
+            double zLeft = 521.0;
+            double zRight = 539.0;
+
+            Color outline = Color.FromArgb(110, 104, 98);
+            Color body = Color.FromArgb(247, 245, 239);
+            Color fold = Color.FromArgb(252, 250, 246);
+            Color blue = Color.FromArgb(82, 148, 220);
+            Color text = Color.FromArgb(76, 112, 160);
+            Color cap = Color.FromArgb(214, 92, 120);
+
+            AddRectOnXPlane(xPlane, yBottom, zLeft, yTop, zRight, body, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.01, yBottom + 1.0, zLeft + 1.0, yBottom + 14.0, zRight - 1.0, blue, FaceLayer.SmallDetail);
+            AddQuad(xPlane + 0.02, yTop, zLeft + 2.8, xPlane + 0.02, yTop, zRight - 2.8, xPlane + 0.02, yTop + 5.4, zRight - 7.0, xPlane + 0.02, yTop + 5.4, zLeft + 7.0, null, fold, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.03, yTop + 0.7, zRight - 7.0, yTop + 5.4, zRight - 4.3, cap, FaceLayer.SmallDetail);
+
+            // Компактная надпись MILK: ещё меньше и левее, чтобы не вылезала за край пакета.
+            double y1 = yBottom + 18.4;
+            double y2 = yBottom + 24.4;
+            // M
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 2.8, y2, zLeft + 3.35, text, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 5.15, y2, zLeft + 5.70, text, FaceLayer.SmallDetail);
+            AddQuad(xPlane + 0.05, y2, zLeft + 3.35, xPlane + 0.05, y2, zLeft + 3.85, xPlane + 0.05, y1 + 2.7, zLeft + 4.25, xPlane + 0.05, y1 + 2.7, zLeft + 3.75, null, text, FaceLayer.SmallDetail);
+            AddQuad(xPlane + 0.05, y1 + 2.7, zLeft + 4.25, xPlane + 0.05, y1 + 2.7, zLeft + 4.75, xPlane + 0.05, y2, zLeft + 5.15, xPlane + 0.05, y2, zLeft + 4.65, null, text, FaceLayer.SmallDetail);
+            // I
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 7.05, y2, zLeft + 7.60, text, FaceLayer.SmallDetail);
+            // L
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 9.05, y2, zLeft + 9.60, text, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 9.05, y1 + 0.75, zLeft + 11.25, text, FaceLayer.SmallDetail);
+            // K — делаем толще и читаемее, чтобы диагонали не были слишком тонкими.
+            AddRectOnXPlane(xPlane + 0.05, y1, zLeft + 12.15, y2, zLeft + 12.95, text, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.05, y1 + 2.50, zLeft + 12.75, y1 + 3.45, zLeft + 13.65, text, FaceLayer.SmallDetail);
+            AddQuad(xPlane + 0.05, y1 + 3.05, zLeft + 12.85, xPlane + 0.05, y1 + 3.75, zLeft + 13.65, xPlane + 0.05, y2, zLeft + 15.00, xPlane + 0.05, y2 - 0.80, zLeft + 14.20, null, text, FaceLayer.SmallDetail);
+            AddQuad(xPlane + 0.05, y1 + 2.90, zLeft + 12.85, xPlane + 0.05, y1 + 2.20, zLeft + 13.65, xPlane + 0.05, y1, zLeft + 15.00, xPlane + 0.05, y1 + 0.80, zLeft + 14.20, null, text, FaceLayer.SmallDetail);
+
+            AddRectOnXPlane(xPlane + 0.08, yBottom, zLeft, yBottom + 0.9, zRight, outline, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.08, yTop - 0.9, zLeft, yTop, zRight, outline, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.08, yBottom, zLeft, yTop, zLeft + 0.9, outline, FaceLayer.SmallDetail);
+            AddRectOnXPlane(xPlane + 0.08, yBottom, zRight - 0.9, yTop, zRight, outline, FaceLayer.SmallDetail);
         }
 
         private void AddCoffeeMachineWallCounter()
@@ -607,23 +732,29 @@ namespace игра_для_проги.Controller
             //
             // Поэтому мешки ставим справа от кассы, на свободное место.
 
+            // Дальний мешок остаётся на месте.
             AddCoffeeBeanBag(
                 126, -34.7, 394,
                 148, -10.5, 406,
-                Color.FromArgb(136, 104, 72),   // основной цвет мешка
-                Color.FromArgb(104, 78, 54),    // тень / складки
-                Color.FromArgb(206, 194, 166),  // ярлык
-                Color.FromArgb(78, 56, 38)      // знак / зерно
+                Color.FromArgb(136, 104, 72),
+                Color.FromArgb(104, 78, 54),
+                Color.FromArgb(206, 194, 166),
+                Color.FromArgb(78, 56, 38)
             );
 
+            // Ближний к игроку мешок — именно его берём в анимации заправки.
+            int frontBagStart = _model.Points.Count;
             AddCoffeeBeanBag(
                 126, -34.7, 410,
                 148, -9.0, 422,
-                Color.FromArgb(88, 64, 44),     // более тёмный мешок
+                Color.FromArgb(88, 64, 44),
                 Color.FromArgb(66, 46, 30),
                 Color.FromArgb(212, 198, 170),
                 Color.FromArgb(92, 66, 42)
             );
+            AddPointRangeToGroup(frontBagStart, _model.Points.Count, _frontCoffeeBeanBagPoints, _frontCoffeeBeanBagBaseY);
+
+            AddCoffeeMachineRefillProps();
         }
 
         private void AddCoffeeBeanBag(
@@ -938,13 +1069,15 @@ namespace игра_для_проги.Controller
 
             AddQuad(frontPlane - 0.06, y + 17.2, z1 + 10, frontPlane - 0.06, y + 17.8, z1 + 10, frontPlane - 0.06, y + 17.8, z2 - 10, frontPlane - 0.06, y + 17.2, z2 - 10, null, steelDark, FaceLayer.SmallDetail);
 
-            AddBlock(xFront - 4.6, y + 11.2, z1 + 24, xFront + 0.1, y + 17.0, z1 + 43, null, anthracite, FaceLayer.SmallDetail);
-            AddBlock(xFront - 4.6, y + 11.2, z2 - 43, xFront + 0.1, y + 17.0, z2 - 24, null, anthracite, FaceLayer.SmallDetail);
+            // Передние чёрные блоки и вертикальные серые детали делаем компактнее,
+            // сохраняя их верхнее выравнивание.
+            AddBlock(xFront - 3.4, y + 14.1, z1 + 27.0, xFront + 0.1, y + 17.0, z1 + 38.0, null, anthracite, FaceLayer.SmallDetail);
+            AddBlock(xFront - 3.4, y + 14.1, z2 - 38.0, xFront + 0.1, y + 17.0, z2 - 27.0, null, anthracite, FaceLayer.SmallDetail);
 
-            AddBlock(xFront - 7.2, y + 8.1, z1 + 30, xFront - 4.8, y + 13.0, z1 + 32, null, metal, FaceLayer.SmallDetail);
-            AddBlock(xFront - 7.2, y + 8.1, z1 + 35, xFront - 4.8, y + 13.0, z1 + 37, null, metal, FaceLayer.SmallDetail);
-            AddBlock(xFront - 7.2, y + 8.1, z2 - 37, xFront - 4.8, y + 13.0, z2 - 35, null, metal, FaceLayer.SmallDetail);
-            AddBlock(xFront - 7.2, y + 8.1, z2 - 32, xFront - 4.8, y + 13.0, z2 - 30, null, metal, FaceLayer.SmallDetail);
+            AddBlock(xFront - 5.0, y + 10.9, z1 + 30.0, xFront - 3.8, y + 15.8, z1 + 31.3, null, metal, FaceLayer.SmallDetail);
+            AddBlock(xFront - 5.0, y + 10.9, z1 + 33.7, xFront - 3.8, y + 15.8, z1 + 35.0, null, metal, FaceLayer.SmallDetail);
+            AddBlock(xFront - 5.0, y + 10.9, z2 - 35.0, xFront - 3.8, y + 15.8, z2 - 33.7, null, metal, FaceLayer.SmallDetail);
+            AddBlock(xFront - 5.0, y + 10.9, z2 - 31.3, xFront - 3.8, y + 15.8, z2 - 30.0, null, metal, FaceLayer.SmallDetail);
 
             AddBlock(xFront - 2.2, y + 4.0, z1 + 16, xFront + 7.0, y + 6.4, z2 - 16, null, Color.FromArgb(32, 34, 38), FaceLayer.SmallDetail);
             AddBlock(xFront - 2.6, y + 3.2, z1 + 16, xFront - 1.6, y + 6.4, z2 - 16, null, black, FaceLayer.SmallDetail);
@@ -959,6 +1092,89 @@ namespace игра_для_проги.Controller
             AddBlock(xFront + 1.0, y, z2 - 15, xFront + 4.0, y + 1.0, z2 - 10, null, anthracite, FaceLayer.SmallDetail);
             AddBlock(xBack - 4.0, y, z1 + 10, xBack - 1.0, y + 1.0, z1 + 15, null, anthracite, FaceLayer.SmallDetail);
             AddBlock(xBack - 4.0, y, z2 - 15, xBack - 1.0, y + 1.0, z2 - 10, null, anthracite, FaceLayer.SmallDetail);
+
+            AddCoffeeMachineBrewingCup(xFront - 3.0, y + 5.35, z1 + 33.5);
+        }
+
+        private void AddCoffeeMachineBrewingCup(double x, double y, double z)
+        {
+            Color cupBody = Color.FromArgb(144, 132, 118);
+            Color coffee = Color.FromArgb(119, 73, 47);
+
+            int cupStart = _model.Points.Count;
+            AddPaperCup(x, y, z, cupBody);
+            AddPointRangeToGroup(cupStart, _model.Points.Count, _coffeeMachineCupPoints, _coffeeMachineCupBaseY);
+
+            int coffeeStart = _model.Points.Count;
+            _coffeeMachineCupCoffeeBottomY = y + 0.35;
+            _coffeeMachineCupCoffeeTopY = y + 4.65;
+            AddBlock(x - 2.35, _coffeeMachineCupCoffeeBottomY, z - 1.55, x + 2.35, _coffeeMachineCupCoffeeTopY, z + 1.55, null, coffee, FaceLayer.SmallDetail);
+            AddPointRangeToGroup(coffeeStart, _model.Points.Count, _coffeeMachineCupCoffeePoints, _coffeeMachineCupCoffeeBaseY);
+            _coffeeMachineCupCoffeeTopPoints.Add(coffeeStart + 4);
+            _coffeeMachineCupCoffeeTopPoints.Add(coffeeStart + 5);
+            _coffeeMachineCupCoffeeTopPoints.Add(coffeeStart + 6);
+            _coffeeMachineCupCoffeeTopPoints.Add(coffeeStart + 7);
+        }
+
+        private void AddCoffeeMachineRefillProps()
+        {
+            // Для анимации используем тот же тип мешка, что и на баре.
+            int bagStart = _model.Points.Count;
+            AddCoffeeBeanBag(
+                240.0, 6.0, 490.0,
+                262.0, 30.2, 502.0,
+                Color.FromArgb(88, 64, 44),
+                Color.FromArgb(66, 46, 30),
+                Color.FromArgb(212, 198, 170),
+                Color.FromArgb(92, 66, 42)
+            );
+            AddPointRangeToTransformGroup(bagStart, _model.Points.Count, _coffeeRefillBagPoints, _coffeeRefillBagBaseX, _coffeeRefillBagBaseY, _coffeeRefillBagBaseZ);
+
+            // Создаём много групп зёрен около отверстия мешка — дальше они будут реально сыпаться вниз.
+            AddCoffeeBeanCluster(255.8, 26.0, 501.2);
+            AddCoffeeBeanCluster(255.4, 25.5, 500.9);
+            AddCoffeeBeanCluster(256.2, 26.4, 501.0);
+            AddCoffeeBeanCluster(255.9, 25.7, 500.6);
+            AddCoffeeBeanCluster(255.1, 25.9, 500.8);
+            AddCoffeeBeanCluster(256.5, 26.1, 501.1);
+            AddCoffeeBeanCluster(255.6, 26.6, 500.7);
+            AddCoffeeBeanCluster(256.0, 25.2, 501.3);
+            AddCoffeeBeanCluster(255.0, 26.3, 500.5);
+            AddCoffeeBeanCluster(256.4, 25.6, 500.9);
+            AddCoffeeBeanCluster(255.7, 26.0, 500.4);
+            AddCoffeeBeanCluster(256.1, 25.3, 500.8);
+            AddCoffeeBeanCluster(255.3, 26.5, 501.2);
+            AddCoffeeBeanCluster(256.3, 26.2, 500.6);
+            AddCoffeeBeanCluster(255.5, 25.4, 501.0);
+            AddCoffeeBeanCluster(255.9, 26.1, 500.9);
+
+            // Дополнительные группы для более обильного и широкого потока зёрен.
+            AddCoffeeBeanCluster(255.2, 26.8, 500.2);
+            AddCoffeeBeanCluster(256.6, 25.8, 501.4);
+            AddCoffeeBeanCluster(255.0, 25.7, 500.1);
+            AddCoffeeBeanCluster(256.8, 26.6, 501.3);
+            AddCoffeeBeanCluster(255.4, 26.9, 500.7);
+            AddCoffeeBeanCluster(256.0, 25.1, 500.2);
+            AddCoffeeBeanCluster(255.6, 27.0, 501.5);
+            AddCoffeeBeanCluster(256.4, 25.0, 500.4);
+            AddCoffeeBeanCluster(255.1, 26.4, 501.4);
+            AddCoffeeBeanCluster(256.7, 26.0, 500.3);
+            AddCoffeeBeanCluster(255.8, 26.7, 501.6);
+            AddCoffeeBeanCluster(256.2, 25.2, 500.0);
+        }
+
+        private void AddCoffeeBeanCluster(double x, double y, double z)
+        {
+            int start = _model.Points.Count;
+            Color bean = Color.FromArgb(98, 58, 32);
+            Color beanMid = Color.FromArgb(122, 76, 42);
+            Color beanLight = Color.FromArgb(144, 96, 54);
+
+            // Зёрна делаем крупнее и контрастнее, чтобы поток был заметен из 1-го лица.
+            AddBlock(x - 0.54, y, z - 0.28, x + 0.54, y + 0.78, z + 0.28, null, bean, FaceLayer.SmallDetail);
+            AddBlock(x - 0.24, y + 0.80, z - 0.16, x + 0.24, y + 1.26, z + 0.16, null, beanMid, FaceLayer.SmallDetail);
+            AddBlock(x - 0.12, y + 1.28, z - 0.10, x + 0.12, y + 1.54, z + 0.10, null, beanLight, FaceLayer.SmallDetail);
+            AddPointRangeToTransformGroup(start, _model.Points.Count, _coffeeRefillBeansPoints, _coffeeRefillBeansBaseX, _coffeeRefillBeansBaseY, _coffeeRefillBeansBaseZ);
         }
 
         private void AddCashRegister(double x, double y, double z)
@@ -975,42 +1191,47 @@ namespace игра_для_проги.Controller
             Color printerDark = Color.FromArgb(66, 70, 74);
             Color terminalBody = Color.FromArgb(36, 38, 44);
 
-            AddBlock(x, y, z, x + 56, y + 11, z + 34, null, bodyDark, FaceLayer.Furniture);
-            AddBlock(x + 2, y + 11, z + 2, x + 54, y + 16, z + 32, null, body, FaceLayer.Furniture);
-            AddBlock(x + 5, y + 16, z + 5, x + 31, y + 18.5, z + 27, null, keyboardBase, FaceLayer.Furniture);
+            // Касса и чековый аппарат поменяны местами:
+            // чековый аппарат теперь слева, касса с экраном — справа.
+            double printerX = x;
+            double cashX = x + 28;
 
-            AddQuad(x + 3, y + 6.3, z + 34.15, x + 53, y + 6.3, z + 34.15, x + 53, y + 7.2, z + 34.15, x + 3, y + 7.2, z + 34.15, null, accent, FaceLayer.SmallDetail);
-            AddBlock(x + 23, y + 4.2, z + 34.05, x + 33, y + 6.2, z + 34.8, null, accent, FaceLayer.SmallDetail);
-            AddBlock(x + 46, y + 11, z + 6, x + 54, y + 15, z + 28, null, bodyLight, FaceLayer.SmallDetail);
+            AddBlock(cashX, y, z, cashX + 56, y + 11, z + 34, null, bodyDark, FaceLayer.Furniture);
+            AddBlock(cashX + 2, y + 11, z + 2, cashX + 54, y + 16, z + 32, null, body, FaceLayer.Furniture);
+            AddBlock(cashX + 5, y + 16, z + 5, cashX + 31, y + 18.5, z + 27, null, keyboardBase, FaceLayer.Furniture);
 
-            AddCashKeyboard(x, y, z, keyLight, keyMid);
+            AddQuad(cashX + 3, y + 6.3, z + 34.15, cashX + 53, y + 6.3, z + 34.15, cashX + 53, y + 7.2, z + 34.15, cashX + 3, y + 7.2, z + 34.15, null, accent, FaceLayer.SmallDetail);
+            AddBlock(cashX + 23, y + 4.2, z + 34.05, cashX + 33, y + 6.2, z + 34.8, null, accent, FaceLayer.SmallDetail);
+            AddBlock(cashX + 46, y + 11, z + 6, cashX + 54, y + 15, z + 28, null, bodyLight, FaceLayer.SmallDetail);
 
-            AddBlock(x + 36, y + 16, z + 14, x + 42, y + 28, z + 20, null, bodyDark, FaceLayer.Furniture);
-            AddBlock(x + 34, y + 27, z + 12, x + 44, y + 30, z + 22, null, bodyLight, FaceLayer.SmallDetail);
-            AddBlock(x + 28, y + 30, z + 8, x + 52, y + 47, z + 26, null, bodyLight, FaceLayer.Furniture);
-            AddBlock(x + 29, y + 46.2, z + 9, x + 51, y + 47.2, z + 25, null, accent, FaceLayer.SmallDetail);
+            AddCashKeyboard(cashX, y, z, keyLight, keyMid);
 
-            AddQuad(x + 30, y + 32, z + 26.2, x + 50, y + 32, z + 26.2, x + 50, y + 45, z + 26.2, x + 30, y + 45, z + 26.2, null, screenBezel, FaceLayer.SmallDetail);
-            AddQuad(x + 32, y + 34, z + 26.35, x + 48, y + 34, z + 26.35, x + 48, y + 43, z + 26.35, x + 32, y + 43, z + 26.35, null, Color.Black, FaceLayer.SmallDetail);
+            AddBlock(cashX + 36, y + 16, z + 14, cashX + 42, y + 28, z + 20, null, bodyDark, FaceLayer.Furniture);
+            AddBlock(cashX + 34, y + 27, z + 12, cashX + 44, y + 30, z + 22, null, bodyLight, FaceLayer.SmallDetail);
+            AddBlock(cashX + 28, y + 30, z + 8, cashX + 52, y + 47, z + 26, null, bodyLight, FaceLayer.Furniture);
+            AddBlock(cashX + 29, y + 46.2, z + 9, cashX + 51, y + 47.2, z + 25, null, accent, FaceLayer.SmallDetail);
 
-            AddCashRecipeScreenContent(x, y, z);
+            AddQuad(cashX + 30, y + 32, z + 26.2, cashX + 50, y + 32, z + 26.2, cashX + 50, y + 45, z + 26.2, cashX + 30, y + 45, z + 26.2, null, screenBezel, FaceLayer.SmallDetail);
+            AddQuad(cashX + 32, y + 34, z + 26.35, cashX + 48, y + 34, z + 26.35, cashX + 48, y + 43, z + 26.35, cashX + 32, y + 43, z + 26.35, null, Color.Black, FaceLayer.SmallDetail);
+
+            AddCashRecipeScreenContent(cashX, y, z);
             SetCashRecipeScreenVisible(false);
 
-            AddBlock(x + 60, y, z + 8, x + 84, y + 12, z + 28, null, printerBody, FaceLayer.Furniture);
-            AddBlock(x + 62, y + 12, z + 10, x + 82, y + 15, z + 26, null, printerBody, FaceLayer.Furniture);
-            AddQuad(x + 61, y + 4.5, z + 28.15, x + 83, y + 4.5, z + 28.15, x + 83, y + 10.2, z + 28.15, x + 61, y + 10.2, z + 28.15, null, printerDark, FaceLayer.SmallDetail);
-            AddBlock(x + 66.0, y + 14.2, z + 16.8, x + 78.0, y + 14.8, z + 19.2, null, printerDark, FaceLayer.SmallDetail);
-            AddBlock(x + 66.8, y + 14.9, z + 17.1, x + 77.2, y + 20.5, z + 18.9, null, HorrorColor.Paper, FaceLayer.SmallDetail);
-            AddBlock(x + 79.2, y + 15.0, z + 22.2, x + 81.0, y + 15.8, z + 24.0, null, HorrorColor.RedGlow, FaceLayer.SmallDetail);
+            AddBlock(printerX, y, z + 8, printerX + 24, y + 12, z + 28, null, printerBody, FaceLayer.Furniture);
+            AddBlock(printerX + 2, y + 12, z + 10, printerX + 22, y + 15, z + 26, null, printerBody, FaceLayer.Furniture);
+            AddQuad(printerX + 1, y + 4.5, z + 28.15, printerX + 23, y + 4.5, z + 28.15, printerX + 23, y + 10.2, z + 28.15, printerX + 1, y + 10.2, z + 28.15, null, printerDark, FaceLayer.SmallDetail);
+            AddBlock(printerX + 6.0, y + 14.2, z + 16.8, printerX + 18.0, y + 14.8, z + 19.2, null, printerDark, FaceLayer.SmallDetail);
+            AddBlock(printerX + 6.8, y + 14.9, z + 17.1, printerX + 17.2, y + 20.5, z + 18.9, null, HorrorColor.Paper, FaceLayer.SmallDetail);
+            AddBlock(printerX + 19.2, y + 15.0, z + 22.2, printerX + 21.0, y + 15.8, z + 24.0, null, HorrorColor.RedGlow, FaceLayer.SmallDetail);
 
-            AddBlock(x + 11, y + 18.2, z - 8, x + 22, y + 20.2, z + 1, null, terminalBody, FaceLayer.SmallDetail);
-            AddBlock(x + 14, y + 20.2, z - 6.5, x + 19, y + 26.5, z - 1.5, null, terminalBody, FaceLayer.SmallDetail);
-            AddQuad(x + 14.6, y + 21.8, z - 1.35, x + 18.4, y + 21.8, z - 1.35, x + 18.4, y + 25.0, z - 1.35, x + 14.6, y + 25.0, z - 1.35, null, Color.Black, FaceLayer.SmallDetail);
+            AddBlock(cashX + 11, y + 18.2, z - 8, cashX + 22, y + 20.2, z + 1, null, terminalBody, FaceLayer.SmallDetail);
+            AddBlock(cashX + 14, y + 20.2, z - 6.5, cashX + 19, y + 26.5, z - 1.5, null, terminalBody, FaceLayer.SmallDetail);
+            AddQuad(cashX + 14.6, y + 21.8, z - 1.35, cashX + 18.4, y + 21.8, z - 1.35, cashX + 18.4, y + 25.0, z - 1.35, cashX + 14.6, y + 25.0, z - 1.35, null, Color.Black, FaceLayer.SmallDetail);
 
-            AddBlock(x + 3, y - 0.2, z + 3, x + 7, y + 0.8, z + 7, null, bodyDark, FaceLayer.SmallDetail);
-            AddBlock(x + 49, y - 0.2, z + 3, x + 53, y + 0.8, z + 7, null, bodyDark, FaceLayer.SmallDetail);
-            AddBlock(x + 3, y - 0.2, z + 27, x + 7, y + 0.8, z + 31, null, bodyDark, FaceLayer.SmallDetail);
-            AddBlock(x + 49, y - 0.2, z + 27, x + 53, y + 0.8, z + 31, null, bodyDark, FaceLayer.SmallDetail);
+            AddBlock(cashX + 3, y - 0.2, z + 3, cashX + 7, y + 0.8, z + 7, null, bodyDark, FaceLayer.SmallDetail);
+            AddBlock(cashX + 49, y - 0.2, z + 3, cashX + 53, y + 0.8, z + 7, null, bodyDark, FaceLayer.SmallDetail);
+            AddBlock(cashX + 3, y - 0.2, z + 27, cashX + 7, y + 0.8, z + 31, null, bodyDark, FaceLayer.SmallDetail);
+            AddBlock(cashX + 49, y - 0.2, z + 27, cashX + 53, y + 0.8, z + 31, null, bodyDark, FaceLayer.SmallDetail);
         }
 
         private void AddCashRecipeScreenContent(double x, double y, double z)
@@ -1022,62 +1243,28 @@ namespace игра_для_проги.Controller
             Color blue = Color.FromArgb(112, 206, 238);
             Color blueDark = Color.FromArgb(58, 136, 174);
             Color blueLight = Color.FromArgb(168, 228, 248);
-
-            Color glass = Color.FromArgb(226, 242, 244, 244);
+            Color outline = Color.FromArgb(70, 98, 112);
             Color lid = Color.FromArgb(224, 232, 236);
             Color straw = Color.FromArgb(233, 106, 156);
+            Color coffee = Color.FromArgb(119, 73, 47);
+            Color milk = Color.FromArgb(245, 228, 211);
+            Color raspberry = Color.FromArgb(202, 54, 106);
+            Color cupBody = Color.FromArgb(190, 234, 224, 210);
+            Color sleeve = Color.FromArgb(164, 108, 78);
 
-            Color raspberry = Color.FromArgb(203, 58, 112);
-            Color raspberryDark = Color.FromArgb(150, 35, 86);
-            Color coffee = Color.FromArgb(118, 74, 48);
-            Color coffeeDark = Color.FromArgb(86, 52, 35);
-            Color milk = Color.FromArgb(238, 215, 194);
-            Color milkLight = Color.FromArgb(248, 236, 223);
-
-            Color text = Color.FromArgb(14, 26, 30);
-
-            // Основной голубой экран.
             AddQuad(x + 32.1, y + 34.1, screenZ, x + 47.9, y + 34.1, screenZ, x + 47.9, y + 42.9, screenZ, x + 32.1, y + 42.9, screenZ, null, blue, FaceLayer.SmallDetail);
-
-            // Верхняя и нижняя голубые полосы.
             AddQuad(x + 32.1, y + 42.2, screenZ + 0.02, x + 47.9, y + 42.2, screenZ + 0.02, x + 47.9, y + 42.9, screenZ + 0.02, x + 32.1, y + 42.9, screenZ + 0.02, null, blueLight, FaceLayer.SmallDetail);
             AddQuad(x + 32.1, y + 34.1, screenZ + 0.02, x + 47.9, y + 34.1, screenZ + 0.02, x + 47.9, y + 34.7, screenZ + 0.02, x + 32.1, y + 34.7, screenZ + 0.02, null, blueDark, FaceLayer.SmallDetail);
-            // Текст на маленьком 3D-экране кассы временно убран,
-            // потому что он отображался как чёрные летающие буквы в комнате.
 
-            // Стакан с малиновым латте - более детализированное изображение.
-            // Крышка.
-            AddQuad(x + 36.2, y + 39.05, screenZ + 0.06, x + 43.8, y + 39.05, screenZ + 0.06, x + 43.3, y + 39.65, screenZ + 0.06, x + 36.7, y + 39.65, screenZ + 0.06, null, lid, FaceLayer.SmallDetail);
-            AddQuad(x + 38.0, y + 39.65, screenZ + 0.07, x + 42.0, y + 39.65, screenZ + 0.07, x + 41.8, y + 39.95, screenZ + 0.07, x + 38.2, y + 39.95, screenZ + 0.07, null, lid, FaceLayer.SmallDetail);
-
-            // Трубочка.
-            AddQuad(x + 40.15, y + 39.7, screenZ + 0.08, x + 40.55, y + 39.7, screenZ + 0.08, x + 40.35, y + 41.0, screenZ + 0.08, x + 39.95, y + 41.0, screenZ + 0.08, null, straw, FaceLayer.SmallDetail);
-
-            // Корпус стакана.
-            AddQuad(x + 36.9, y + 35.6, screenZ + 0.05, x + 43.1, y + 35.6, screenZ + 0.05, x + 42.3, y + 39.0, screenZ + 0.05, x + 37.7, y + 39.0, screenZ + 0.05, null, glass, FaceLayer.SmallDetail);
-
-            // Малиновый верх.
-            AddQuad(x + 37.35, y + 38.15, screenZ + 0.07, x + 42.65, y + 38.15, screenZ + 0.07, x + 42.1, y + 38.65, screenZ + 0.07, x + 37.9, y + 38.65, screenZ + 0.07, null, raspberry, FaceLayer.SmallDetail);
-
-            // Кофейный средний слой.
-            AddQuad(x + 37.45, y + 36.95, screenZ + 0.08, x + 42.55, y + 36.95, screenZ + 0.08, x + 42.0, y + 38.1, screenZ + 0.08, x + 38.0, y + 38.1, screenZ + 0.08, null, coffee, FaceLayer.SmallDetail);
-
-            // Молочная нижняя часть.
-            AddQuad(x + 37.55, y + 35.95, screenZ + 0.09, x + 42.45, y + 35.95, screenZ + 0.09, x + 41.85, y + 36.95, screenZ + 0.09, x + 38.15, y + 36.95, screenZ + 0.09, null, milk, FaceLayer.SmallDetail);
-
-            // Светлые блики на стакане.
-            AddQuad(x + 38.15, y + 36.1, screenZ + 0.10, x + 38.5, y + 36.1, screenZ + 0.10, x + 38.3, y + 38.7, screenZ + 0.10, x + 37.95, y + 38.7, screenZ + 0.10, null, Color.FromArgb(170, 255, 255, 255), FaceLayer.SmallDetail);
-            AddQuad(x + 41.45, y + 36.3, screenZ + 0.10, x + 41.7, y + 36.3, screenZ + 0.10, x + 41.55, y + 38.15, screenZ + 0.10, x + 41.3, y + 38.15, screenZ + 0.10, null, Color.FromArgb(110, 255, 255, 255), FaceLayer.SmallDetail);
-
-            // Малиновые акценты/ягоды.
-            AddQuad(x + 38.6, y + 38.35, screenZ + 0.11, x + 39.0, y + 38.35, screenZ + 0.11, x + 38.95, y + 38.55, screenZ + 0.11, x + 38.55, y + 38.55, screenZ + 0.11, null, raspberryDark, FaceLayer.SmallDetail);
-            AddQuad(x + 40.05, y + 38.45, screenZ + 0.11, x + 40.45, y + 38.45, screenZ + 0.11, x + 40.4, y + 38.67, screenZ + 0.11, x + 40.0, y + 38.67, screenZ + 0.11, null, raspberryDark, FaceLayer.SmallDetail);
-            AddQuad(x + 41.25, y + 38.28, screenZ + 0.11, x + 41.6, y + 38.28, screenZ + 0.11, x + 41.55, y + 38.5, screenZ + 0.11, x + 41.2, y + 38.5, screenZ + 0.11, null, raspberryDark, FaceLayer.SmallDetail);
-
-            // Пена/светлая молочная кромка.
-            AddQuad(x + 38.25, y + 37.08, screenZ + 0.10, x + 39.1, y + 37.08, screenZ + 0.10, x + 39.0, y + 37.35, screenZ + 0.10, x + 38.15, y + 37.35, screenZ + 0.10, null, milkLight, FaceLayer.SmallDetail);
-            AddQuad(x + 39.55, y + 37.06, screenZ + 0.10, x + 40.45, y + 37.06, screenZ + 0.10, x + 40.35, y + 37.34, screenZ + 0.10, x + 39.45, y + 37.34, screenZ + 0.10, null, milkLight, FaceLayer.SmallDetail);
-            AddQuad(x + 40.95, y + 37.08, screenZ + 0.10, x + 41.75, y + 37.08, screenZ + 0.10, x + 41.65, y + 37.34, screenZ + 0.10, x + 40.85, y + 37.34, screenZ + 0.10, null, milkLight, FaceLayer.SmallDetail);
+            // Крупный стакан на экране кассы: оставляем только силуэт напитка и крышку.
+            // Нижняя граница силуэта заканчивается на кофейном слое — без дополнительного тёмного основания,
+            // без боковых тёмных стенок и без отдельного прямоугольного подложечного блока.
+            AddQuad(x + 37.72, y + 40.00, screenZ + 0.08, x + 42.28, y + 40.00, screenZ + 0.08, x + 42.02, y + 40.60, screenZ + 0.08, x + 37.98, y + 40.60, screenZ + 0.08, null, lid, FaceLayer.SmallDetail);
+            AddQuad(x + 39.05, y + 40.58, screenZ + 0.09, x + 40.95, y + 40.58, screenZ + 0.09, x + 40.82, y + 40.86, screenZ + 0.09, x + 39.18, y + 40.86, screenZ + 0.09, null, lid, FaceLayer.SmallDetail);
+            AddQuad(x + 40.12, y + 40.72, screenZ + 0.10, x + 40.46, y + 40.72, screenZ + 0.10, x + 40.28, y + 41.95, screenZ + 0.10, x + 39.94, y + 41.95, screenZ + 0.10, null, straw, FaceLayer.SmallDetail);
+            AddQuad(x + 38.08, y + 35.48, screenZ + 0.11, x + 41.92, y + 35.48, screenZ + 0.11, x + 41.68, y + 36.86, screenZ + 0.11, x + 38.32, y + 36.86, screenZ + 0.11, null, coffee, FaceLayer.SmallDetail);
+            AddQuad(x + 38.12, y + 36.86, screenZ + 0.11, x + 41.88, y + 36.86, screenZ + 0.11, x + 42.04, y + 39.02, screenZ + 0.11, x + 37.96, y + 39.02, screenZ + 0.11, null, milk, FaceLayer.SmallDetail);
+            AddQuad(x + 37.96, y + 39.02, screenZ + 0.11, x + 42.04, y + 39.02, screenZ + 0.11, x + 42.14, y + 39.86, screenZ + 0.11, x + 37.86, y + 39.86, screenZ + 0.11, null, raspberry, FaceLayer.SmallDetail);
 
             AddPointRangeToGroup(startIndex, _model.Points.Count, _cashRecipeScreenPoints, _cashRecipeScreenBaseY);
         }
@@ -1124,6 +1311,64 @@ namespace игра_для_проги.Controller
             AddQuad(x + 7, y + 2.1, z + 7, x + 27, y + 2.1, z + 7, x + 27, y + 2.1, z + 35, x + 7, y + 2.1, z + 35, null, basinDark, FaceLayer.SmallDetail);
             AddQuad(x + 9, y + 2.2, z + 11, x + 25, y + 2.2, z + 11, x + 25, y + 2.2, z + 31, x + 9, y + 2.2, z + 31, null, Color.FromArgb(20, 32, 64), FaceLayer.SmallDetail);
             AddQuad(x + 12, y + 2.24, z + 15, x + 22, y + 2.24, z + 15, x + 22, y + 2.24, z + 27, x + 12, y + 2.24, z + 27, null, Color.FromArgb(34, 52, 92), FaceLayer.SmallDetail);
+
+            int foamStart = _model.Points.Count;
+            Color foam = Color.FromArgb(214, 236, 240, 245);
+            Color foamMid = Color.FromArgb(226, 244, 247, 250);
+            Color foamBright = Color.FromArgb(236, 252, 253, 254);
+            Color foamShadow = Color.FromArgb(188, 224, 231, 238);
+
+            // Более детализированная и объёмная пена: несколько больших масс,
+            // поверх которых лежат меньшие пузырьковые "шапки" и гребни.
+            AddBlock(x + 10.0, y + 2.20, z + 14.2, x + 14.2, y + 4.65, z + 17.8, null, foamShadow, FaceLayer.SmallDetail);
+            AddBlock(x + 12.6, y + 2.26, z + 14.8, x + 17.1, y + 5.05, z + 19.2, null, foam, FaceLayer.SmallDetail);
+            AddBlock(x + 16.0, y + 2.24, z + 15.1, x + 21.4, y + 5.35, z + 19.4, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 18.8, y + 2.20, z + 14.6, x + 22.4, y + 4.70, z + 18.1, null, foamMid, FaceLayer.SmallDetail);
+
+            AddBlock(x + 10.8, y + 2.22, z + 19.1, x + 15.6, y + 4.98, z + 22.8, null, foamMid, FaceLayer.SmallDetail);
+            AddBlock(x + 14.3, y + 2.28, z + 18.6, x + 19.1, y + 5.45, z + 23.4, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 18.2, y + 2.22, z + 19.6, x + 22.5, y + 4.82, z + 23.8, null, foam, FaceLayer.SmallDetail);
+
+            AddBlock(x + 11.5, y + 2.22, z + 22.9, x + 16.5, y + 5.10, z + 26.2, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 15.6, y + 2.18, z + 23.6, x + 20.8, y + 4.78, z + 27.8, null, foamMid, FaceLayer.SmallDetail);
+            AddBlock(x + 19.2, y + 2.18, z + 22.8, x + 22.4, y + 4.35, z + 25.4, null, foamShadow, FaceLayer.SmallDetail);
+
+            // Мелкие пузырьковые выступы сверху.
+            AddBlock(x + 11.0, y + 4.55, z + 15.0, x + 12.5, y + 5.70, z + 16.4, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 13.0, y + 4.85, z + 16.1, x + 14.6, y + 6.00, z + 17.5, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 16.0, y + 4.88, z + 17.4, x + 17.8, y + 6.15, z + 19.0, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 18.6, y + 4.75, z + 16.4, x + 20.4, y + 5.86, z + 18.0, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 12.2, y + 4.70, z + 20.1, x + 13.8, y + 5.85, z + 21.4, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 15.0, y + 5.15, z + 20.2, x + 16.8, y + 6.30, z + 21.8, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 17.8, y + 4.95, z + 21.1, x + 19.6, y + 6.05, z + 22.7, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 12.7, y + 4.80, z + 24.1, x + 14.5, y + 5.95, z + 25.5, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 16.2, y + 4.42, z + 25.0, x + 18.2, y + 5.50, z + 26.5, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 18.8, y + 4.18, z + 23.9, x + 20.1, y + 5.05, z + 25.1, null, foamBright, FaceLayer.SmallDetail);
+
+            // Небольшие гребни/полосы на поверхности пены.
+            AddBlock(x + 11.8, y + 3.95, z + 18.4, x + 14.8, y + 4.45, z + 18.9, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 15.8, y + 4.25, z + 22.9, x + 19.3, y + 4.72, z + 23.4, null, foamBright, FaceLayer.SmallDetail);
+            AddBlock(x + 13.8, y + 3.78, z + 26.0, x + 18.8, y + 4.28, z + 26.4, null, foamBright, FaceLayer.SmallDetail);
+
+            AddPointRangeToTransformGroup(foamStart, _model.Points.Count, _sinkWashFoamPoints, _sinkWashFoamBaseX, _sinkWashFoamBaseY, _sinkWashFoamBaseZ);
+
+            int waterStart = _model.Points.Count;
+            Color water = Color.FromArgb(122, 170, 214, 236);
+            Color waterBright = Color.FromArgb(152, 208, 234, 248);
+            Color waterCore = Color.FromArgb(182, 232, 246, 252);
+
+            // Несколько тонких струй воды именно из носика крана (правый выпуск крана над чашей).
+            AddBlock(x + 19.00, y + 3.1, z + 18.80, x + 19.35, y + 12.9, z + 19.12, null, waterBright, FaceLayer.SmallDetail);
+            AddBlock(x + 19.38, y + 3.0, z + 18.96, x + 19.74, y + 13.2, z + 19.26, null, waterCore, FaceLayer.SmallDetail);
+            AddBlock(x + 19.78, y + 3.2, z + 19.06, x + 20.08, y + 12.7, z + 19.34, null, water, FaceLayer.SmallDetail);
+            AddBlock(x + 20.12, y + 3.4, z + 19.14, x + 20.38, y + 12.3, z + 19.38, null, waterBright, FaceLayer.SmallDetail);
+
+            // Брызги и небольшое водяное пятно прямо под носиком.
+            AddBlock(x + 18.8, y + 2.38, z + 18.6, x + 20.8, y + 2.78, z + 20.3, null, waterBright, FaceLayer.SmallDetail);
+            AddBlock(x + 18.5, y + 2.55, z + 17.9, x + 19.2, y + 3.30, z + 18.6, null, waterCore, FaceLayer.SmallDetail);
+            AddBlock(x + 20.2, y + 2.50, z + 18.3, x + 20.9, y + 3.25, z + 19.0, null, waterCore, FaceLayer.SmallDetail);
+            AddBlock(x + 19.3, y + 2.50, z + 19.9, x + 20.0, y + 3.08, z + 20.6, null, waterBright, FaceLayer.SmallDetail);
+            AddPointRangeToTransformGroup(waterStart, _model.Points.Count, _sinkWashWaterPoints, _sinkWashWaterBaseX, _sinkWashWaterBaseY, _sinkWashWaterBaseZ);
 
             AddBlock(x + 14, y + 2.0, z + 6, x + 17, y + 18.0, z + 9, null, faucet, FaceLayer.Furniture);
             AddBlock(x + 10, y + 16.0, z + 6, x + 21, y + 18.0, z + 21, null, faucet, FaceLayer.Furniture);
@@ -1330,9 +1575,12 @@ namespace игра_для_проги.Controller
             AddBlock(x1 + 1.2, baseY + 20.5, z1 + 0.9, x2 - 1.2, baseY + 23.2, z2 - 0.9, null, bottleColor, FaceLayer.Furniture);
             AddBlock(x1 + 2.2, baseY + 23.2, zCenter - 3.0, x2 - 2.2, baseY + 25.2, zCenter + 3.0, null, capColor, FaceLayer.SmallDetail);
             AddBlock(xMid - 0.75, baseY + 25.2, zCenter - 0.85, xMid + 0.75, baseY + 28.4, zCenter + 0.85, null, capColor, FaceLayer.SmallDetail);
+            int pumpStartIndex = _model.Points.Count;
             AddBlock(xMid - 1.5, baseY + 28.4, zCenter - 2.2, x2 + 1.2, baseY + 29.8, zCenter + 2.2, null, capColor, FaceLayer.SmallDetail);
             AddBlock(x2 + 1.0, baseY + 27.2, zCenter - 0.55, x2 + 2.8, baseY + 28.0, zCenter + 0.55, null, capColor, FaceLayer.SmallDetail);
             AddBlock(x2 + 2.1, baseY + 26.1, zCenter - 0.50, x2 + 2.8, baseY + 27.2, zCenter + 0.50, null, capColor, FaceLayer.SmallDetail);
+            if (iconType == SyrupIconType.Raspberry)
+                AddPointRangeToGroup(pumpStartIndex, _model.Points.Count, _raspberryPumpPoints, _raspberryPumpBaseY);
 
             AddQuad(x2 + 0.08, baseY + 4.0, zCenter - 4.8, x2 + 0.08, baseY + 17.2, zCenter - 4.8, x2 + 0.08, baseY + 17.2, zCenter + 4.8, x2 + 0.08, baseY + 4.0, zCenter + 4.8, null, labelColor, FaceLayer.SmallDetail);
             AddQuad(x2 + 0.12, baseY + 17.4, zCenter - 3.9, x2 + 0.12, baseY + 18.8, zCenter - 3.9, x2 + 0.12, baseY + 18.8, zCenter + 3.9, x2 + 0.12, baseY + 17.4, zCenter + 3.9, null, capColor, FaceLayer.SmallDetail);
@@ -1749,7 +1997,15 @@ namespace игра_для_проги.Controller
     };
 
             for (int i = 0; i < xs.Length; i++)
+            {
+                int startIndex = _model.Points.Count;
                 AddPaperCup(xs[i], y + 0.8, z, bodyColors[i]);
+
+                // Последний стакан делаем управляемым: когда игрок берёт стакан с полки,
+                // именно эта стопка/чашка визуально пропадает.
+                if (i == xs.Length - 1)
+                    AddPointRangeToGroup(startIndex, _model.Points.Count, _takeawayShelfCupPoints, _takeawayShelfCupBaseY);
+            }
         }
 
         private void AddPaperCup(double x, double y, double z, Color bodyColor)
@@ -1862,6 +2118,23 @@ namespace игра_для_проги.Controller
             }
         }
 
+        private void AddPointRangeToTransformGroup(
+            int startIndex,
+            int endIndex,
+            List<int> pointGroup,
+            List<double> baseXGroup,
+            List<double> baseYGroup,
+            List<double> baseZGroup)
+        {
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                pointGroup.Add(i);
+                baseXGroup.Add(_model.Points[i].X);
+                baseYGroup.Add(_model.Points[i].Y);
+                baseZGroup.Add(_model.Points[i].Z);
+            }
+        }
+
         private void MovePointGroupByY(List<int> pointIndices, List<double> baseY, bool visible)
         {
             double offsetY = visible ? 0.0 : -10000.0;
@@ -1875,6 +2148,192 @@ namespace игра_для_проги.Controller
 
                 _model.Points[index].Y = baseY[i] + offsetY;
             }
+        }
+
+        private void SetPointGroupYOffset(List<int> pointIndices, List<double> baseY, double offsetY)
+        {
+            for (int i = 0; i < pointIndices.Count; i++)
+            {
+                int index = pointIndices[i];
+                if (index < 0 || index >= _model.Points.Count || i >= baseY.Count)
+                    continue;
+
+                _model.Points[index].Y = baseY[i] + offsetY;
+            }
+        }
+
+        public void SetCoffeeMachineCupState(bool visible, double fillProgress)
+        {
+            MovePointGroupByY(_coffeeMachineCupPoints, _coffeeMachineCupBaseY, visible);
+            MovePointGroupByY(_coffeeMachineCupCoffeePoints, _coffeeMachineCupCoffeeBaseY, visible);
+
+            if (visible)
+            {
+                double clamped = Math.Max(0, Math.Min(1, fillProgress));
+                double topY = _coffeeMachineCupCoffeeBottomY + (_coffeeMachineCupCoffeeTopY - _coffeeMachineCupCoffeeBottomY) * clamped;
+                for (int i = 0; i < _coffeeMachineCupCoffeeTopPoints.Count; i++)
+                {
+                    int pointIndex = _coffeeMachineCupCoffeeTopPoints[i];
+                    if (pointIndex >= 0 && pointIndex < _model.Points.Count)
+                        _model.Points[pointIndex].Y = topY;
+                }
+            }
+
+            _model.NotifyChanged();
+        }
+
+        public void SetRaspberryPumpPressed(double progress)
+        {
+            double clamped = Math.Max(0, Math.Min(1, progress));
+            double pressOffset = -1.35 * Math.Sin(clamped * Math.PI);
+            SetPointGroupYOffset(_raspberryPumpPoints, _raspberryPumpBaseY, pressOffset);
+            _model.NotifyChanged();
+        }
+
+        public void SetCoffeeBeanFrontBagVisible(bool visible)
+        {
+            MovePointGroupByY(_frontCoffeeBeanBagPoints, _frontCoffeeBeanBagBaseY, visible);
+            _model.NotifyChanged();
+        }
+
+        public void SetCoffeeMachineRefillAnimation(bool visible, double progress)
+        {
+            double hiddenOffset = visible ? 0.0 : -10000.0;
+            double clamped = Math.Max(0, Math.Min(1, progress));
+            double bagPulse = Math.Sin(clamped * Math.PI);
+
+            // Сохраняем нужную параллельность широкой грани мешка.
+            // Положение мешка в пространстве оставляем тем же.
+            // Меняем только сторону широкой грани: теперь картинка с зерном смотрит к игроку.
+            // Для этого разворачиваем мешок вокруг вертикальной оси, сохраняя верх сверху,
+            // низ снизу и не меняя остальную геометрию анимации.
+            double yaw = -90.0 * Math.PI / 180.0;
+            double rollLeft = 28.0 * Math.PI / 180.0; // ещё более сильный наклон мешка влево относительно вида от 1-го лица
+            double cosYaw = Math.Cos(yaw);
+            double sinYaw = Math.Sin(yaw);
+            double cosRollLeft = Math.Cos(rollLeft);
+            double sinRollLeft = Math.Sin(rollLeft);
+
+            const double bagBaseCenterX = 251.0;
+            const double bagBaseCenterY = 18.1;
+            const double bagBaseCenterZ = 496.0;
+            const double bagTargetCenterX = 265.2;
+            const double bagTargetCenterY = 18.8;
+            const double bagTargetCenterZ = 497.0;
+
+            for (int i = 0; i < _coffeeRefillBagPoints.Count; i++)
+            {
+                int index = _coffeeRefillBagPoints[i];
+                if (index < 0 || index >= _model.Points.Count)
+                    continue;
+
+                double localX = _coffeeRefillBagBaseX[i] - bagBaseCenterX;
+                double localY = _coffeeRefillBagBaseY[i] - bagBaseCenterY;
+                double localZ = _coffeeRefillBagBaseZ[i] - bagBaseCenterZ;
+
+                // Разворот по кругу: верх остаётся верхом, низ остаётся низом.
+                double x1 = localX * cosYaw + localZ * sinYaw;
+                double z1 = -localX * sinYaw + localZ * cosYaw;
+
+                // Добавляем только небольшой завал влево в плоскости широкой грани,
+                // не меняя параллельность грани стене и не отворачивая картинку с зерном.
+                double y1 = localY * cosRollLeft - z1 * sinRollLeft;
+                double z2 = localY * sinRollLeft + z1 * cosRollLeft;
+
+                _model.Points[index].X = bagTargetCenterX + x1 + hiddenOffset - 0.08 * bagPulse;
+                _model.Points[index].Y = bagTargetCenterY + y1 + hiddenOffset + 0.16 * bagPulse;
+                _model.Points[index].Z = bagTargetCenterZ + z2 + hiddenOffset - 0.03 * bagPulse;
+            }
+
+            // Поток зёрен идёт из верхнего выпирающего края мешка к кофемашине.
+            int pointsPerCluster = 24;
+            int beanGroupCount = Math.Max(1, _coffeeRefillBeansPoints.Count / pointsPerCluster);
+            for (int i = 0; i < _coffeeRefillBeansPoints.Count; i++)
+            {
+                int index = _coffeeRefillBeansPoints[i];
+                if (index < 0 || index >= _model.Points.Count)
+                    continue;
+
+                int clusterIndex = Math.Min(beanGroupCount - 1, i / pointsPerCluster);
+                double cycle = (clamped * 5.9 + clusterIndex * 0.08) % 1.0;
+                if (cycle > 0.995)
+                {
+                    _model.Points[index].X = _coffeeRefillBeansBaseX[i] + hiddenOffset;
+                    _model.Points[index].Y = _coffeeRefillBeansBaseY[i] + hiddenOffset;
+                    _model.Points[index].Z = _coffeeRefillBeansBaseZ[i] + hiddenOffset;
+                    continue;
+                }
+
+                double fall = cycle;
+                int columnXIndex = clusterIndex % 6;
+                int columnZIndex = (clusterIndex / 6) % 5;
+                double spreadFall = 0.25 + 0.75 * fall;
+                double sideSpread = (columnXIndex - 2.5) * 0.52 * spreadFall;
+                double depthSpread = (columnZIndex - 2.0) * 0.46 * spreadFall;
+                double wobbleX = Math.Sin((clamped * Math.PI * 8.4) + clusterIndex * 0.55) * 0.10;
+                double wobbleZ = Math.Cos((clamped * Math.PI * 7.8) + clusterIndex * 0.48) * 0.10;
+                double wobbleY = Math.Sin((clamped * Math.PI * 9.3) + clusterIndex * 0.37) * 0.16;
+
+                // Старт потока: ИМЕННО ближний к игроку верхний левый угол мешка.
+                // У верхней точки разброс минимальный, а ниже поток расширяется,
+                // чтобы было видно, что зёрна высыпаются из одного конкретного края.
+                double sourceX = 259.20;
+                double sourceY = 34.65;
+                double sourceZ = 492.97;
+
+                // Падение почти вертикально вниз на верхнюю грань кофемашины.
+                double streamDriftX = 0.12 * fall;
+                double streamDriftY = 31.8 * fall;
+                double streamDriftZ = 0.08 * fall;
+
+                _model.Points[index].X = sourceX + sideSpread + streamDriftX + hiddenOffset + wobbleX;
+                _model.Points[index].Y = sourceY - streamDriftY + hiddenOffset + wobbleY;
+                _model.Points[index].Z = sourceZ + depthSpread + streamDriftZ + hiddenOffset + wobbleZ;
+            }
+
+            _model.NotifyChanged();
+        }
+
+        public void SetSinkWashAnimation(bool visible, double progress)
+        {
+            double hiddenOffset = visible ? 0.0 : -10000.0;
+            double clamped = Math.Max(0, Math.Min(1, progress));
+
+            for (int i = 0; i < _sinkWashFoamPoints.Count; i++)
+            {
+                int index = _sinkWashFoamPoints[i];
+                if (index < 0 || index >= _model.Points.Count)
+                    continue;
+
+                int clusterIndex = i / 8;
+                double bubblePhase = clamped * Math.PI * 6.3 + clusterIndex * 0.76;
+                double rise = 0.34 * Math.Sin(bubblePhase) + 0.08 * Math.Cos(bubblePhase * 0.58);
+                double driftX = 0.06 * Math.Cos(bubblePhase * 0.90);
+                double driftZ = 0.05 * Math.Sin(bubblePhase * 1.05);
+
+                _model.Points[index].X = _sinkWashFoamBaseX[i] + hiddenOffset + driftX;
+                _model.Points[index].Y = _sinkWashFoamBaseY[i] + hiddenOffset + rise;
+                _model.Points[index].Z = _sinkWashFoamBaseZ[i] + hiddenOffset + driftZ;
+            }
+
+            for (int i = 0; i < _sinkWashWaterPoints.Count; i++)
+            {
+                int index = _sinkWashWaterPoints[i];
+                if (index < 0 || index >= _model.Points.Count)
+                    continue;
+
+                int streamIndex = i / 8;
+                double waterPhase = clamped * Math.PI * 8.2 + streamIndex * 0.42;
+                double swayX = 0.05 * Math.Sin(waterPhase);
+                double swayZ = 0.035 * Math.Cos(waterPhase * 1.15);
+                double rippleY = 0.12 * Math.Sin(waterPhase * 0.9);
+
+                _model.Points[index].X = _sinkWashWaterBaseX[i] + hiddenOffset + swayX;
+                _model.Points[index].Y = _sinkWashWaterBaseY[i] + hiddenOffset + rippleY;
+                _model.Points[index].Z = _sinkWashWaterBaseZ[i] + hiddenOffset + swayZ;
+            }
+
+            _model.NotifyChanged();
         }
 
         public void SetDirtyCupsOnTable1Visible(bool visible)
@@ -1904,6 +2363,12 @@ namespace игра_для_проги.Controller
         public void SetReturnedShelfCupsVisible(bool visible)
         {
             MovePointGroupByY(_shelfReturnedCupPoints, _shelfReturnedCupBaseY, visible);
+            _model.NotifyChanged();
+        }
+
+        public void SetTakeawayShelfCupVisible(bool visible)
+        {
+            MovePointGroupByY(_takeawayShelfCupPoints, _takeawayShelfCupBaseY, visible);
             _model.NotifyChanged();
         }
 
@@ -1986,8 +2451,15 @@ namespace игра_для_проги.Controller
             _model.NotifyChanged();
         }
 
+        public void SetTiaBarPassageBlocked(bool blocked)
+        {
+            _tiaBarPassageBlocked = blocked;
+            _model.NotifyChanged();
+        }
+
         private void AddCustomerNpc()
         {
+            // Финальная базовая позиция Тиа в пространстве сцены.
             _clientWorldX = 250;
             _clientWorldZ = 300;
             _clientYaw = -1.45;
@@ -1996,6 +2468,7 @@ namespace игра_для_проги.Controller
 
             Color skin = Color.FromArgb(239, 219, 214);
             Color skinShade = Color.FromArgb(224, 198, 192);
+            Color skinLight = Color.FromArgb(248, 230, 224);
             Color skinDark = Color.FromArgb(205, 176, 171);
             Color cheek = Color.FromArgb(231, 192, 194);
             Color hair = Color.FromArgb(78, 42, 40);
@@ -2006,6 +2479,8 @@ namespace игра_для_проги.Controller
             Color skirt = Color.FromArgb(64, 68, 78);
             Color skirtDark = Color.FromArgb(42, 45, 54);
             Color tights = Color.FromArgb(76, 76, 84);
+            Color pants = Color.FromArgb(34, 36, 42);
+            Color pantsLight = Color.FromArgb(48, 52, 60);
             Color shoes = Color.FromArgb(20, 20, 24);
             Color eyeWhite = Color.FromArgb(244, 244, 244);
             Color irisOuter = Color.FromArgb(106, 140, 138);
@@ -2022,8 +2497,8 @@ namespace игра_для_проги.Controller
             // =====================================================
             // ОБУВЬ / НОГИ / БЁДРА — ШИРЕ
             // =====================================================
-            AddClientBlockLocal(-6.8, sy(-100.0), -7.8, -1.2, sy(-96.0), 9.4, shoes, FaceLayer.SmallDetail);
-            AddClientBlockLocal(1.2, sy(-100.0), -7.8, 6.8, sy(-96.0), 9.4, shoes, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-7.3, sy(-100.0), -7.9, -1.0, sy(-96.0), 9.9, shoes, FaceLayer.SmallDetail);
+            AddClientBlockLocal(1.0, sy(-100.0), -7.9, 7.3, sy(-96.0), 9.9, shoes, FaceLayer.SmallDetail);
             AddClientBlockLocal(-5.6, sy(-96.4), 5.7, -1.7, sy(-95.0), 10.0, shoes, FaceLayer.SmallDetail);
             AddClientBlockLocal(1.7, sy(-96.4), 5.7, 5.6, sy(-95.0), 10.0, shoes, FaceLayer.SmallDetail);
 
@@ -2040,33 +2515,36 @@ namespace игра_для_проги.Controller
             AddClientBlockLocal(-6.6, sy(-69.0), -4.0, -0.6, sy(-62.2), 5.3, skinShade, FaceLayer.SmallDetail);
             AddClientBlockLocal(0.6, sy(-69.0), -4.0, 6.6, sy(-62.2), 5.3, skinShade, FaceLayer.SmallDetail);
 
-            AddClientBlockLocal(-8.2, sy(-63.0), -4.8, -0.8, sy(-48.0), 6.3, tights, FaceLayer.SmallDetail);
-            AddClientBlockLocal(0.8, sy(-63.0), -4.8, 8.2, sy(-48.0), 6.3, tights, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-8.8, sy(-56.0), -5.2, -0.6, sy(-39.0), 6.8, tights, FaceLayer.SmallDetail);
-            AddClientBlockLocal(0.6, sy(-56.0), -5.2, 8.8, sy(-39.0), 6.8, tights, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.2, sy(-63.0), -5.0, -0.7, sy(-48.0), 6.9, tights, FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.7, sy(-63.0), -5.0, 9.2, sy(-48.0), 6.9, tights, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.8, sy(-56.0), -5.5, -0.5, sy(-39.0), 7.4, tights, FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.5, sy(-56.0), -5.5, 9.8, sy(-39.0), 7.4, tights, FaceLayer.SmallDetail);
+            // Добавляем объём бёдрам и голеням.
+            AddClientQuadLocal(-8.6, sy(-63.0), 5.8, -1.2, sy(-63.0), 5.8, -0.6, sy(-39.5), 7.0, -8.8, sy(-39.5), 7.0, tights, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.2, sy(-63.0), 5.8, 8.6, sy(-63.0), 5.8, 8.8, sy(-39.5), 7.0, 0.6, sy(-39.5), 7.0, tights, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-7.0, sy(-88.0), 4.2, -1.0, sy(-88.0), 4.2, -0.9, sy(-72.0), 5.5, -7.2, sy(-72.0), 5.5, tights, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.0, sy(-88.0), 4.2, 7.0, sy(-88.0), 4.2, 7.2, sy(-72.0), 5.5, 0.9, sy(-72.0), 5.5, tights, FaceLayer.SmallDetail);
 
-            // Юбка / таз — шире примерно в 1.5 раза.
-            AddClientBlockLocal(-11.6, sy(-39.0), -6.0, 11.6, sy(-33.5), 6.8, skirtDark, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-13.3, sy(-33.5), -7.2, 13.3, sy(-26.0), 8.2, skirt, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-12.0, sy(-26.0), -6.7, 12.0, sy(-20.0), 7.8, skirt, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-10.2, sy(-20.0), -5.8, 10.2, sy(-16.8), 6.9, skirtDark, FaceLayer.SmallDetail);
-
-            // Длинное платье/кофта до лодыжек.
-            // Ставим поверх ног как цельную тёмную форму, но оставляем обувь снизу видимой.
-            AddClientBlockLocal(-11.0, sy(-94.0), -6.0, 11.0, sy(-74.0), 7.0, dress, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-12.5, sy(-74.0), -6.4, 12.5, sy(-50.0), 7.4, dress, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-13.2, sy(-50.0), -6.8, 13.2, sy(-28.0), 7.8, dressLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-11.5, sy(-28.0), -6.2, 11.5, sy(-16.8), 7.2, dressLight, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-12.8, sy(-90.0), 7.5, -6.8, sy(-90.0), 7.5, -7.6, sy(-20.0), 7.4, -13.2, sy(-28.0), 7.4, skirtDark, FaceLayer.SmallDetail);
-            AddClientQuadLocal(6.8, sy(-90.0), 7.5, 12.8, sy(-90.0), 7.5, 13.2, sy(-28.0), 7.4, 7.6, sy(-20.0), 7.4, skirtDark, FaceLayer.SmallDetail);
+            // Нижняя часть образа без юбки: оставляем штаны и убираем расширяющийся силуэт.
+            // Две отдельные штанины + аккуратная зона таза, чтобы силуэт оставался человеческим,
+            // но не выглядел как платье или юбка.
+            AddClientBlockLocal(-8.8, sy(-47.0), -5.6, -0.7, sy(-17.0), 7.2, pants, FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.7, sy(-47.0), -5.6, 8.8, sy(-17.0), 7.2, pants, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.8, sy(-39.0), -5.9, -0.5, sy(-22.0), 7.5, pantsLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.5, sy(-39.0), -5.9, 9.8, sy(-22.0), 7.5, pantsLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-6.2, sy(-22.0), -4.8, 6.2, sy(-16.8), 6.2, pantsLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-8.4, sy(-47.0), 6.1, -1.2, sy(-47.0), 6.1, -0.8, sy(-17.2), 6.8, -7.8, sy(-17.2), 6.8, pantsLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.2, sy(-47.0), 6.1, 8.4, sy(-47.0), 6.1, 7.8, sy(-17.2), 6.8, 0.8, sy(-17.2), 6.8, pantsLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.7, sy(-20.8), 6.3, -1.1, sy(-20.8), 6.6, -1.2, sy(-16.8), 6.9, -5.5, sy(-16.8), 6.8, pants, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.1, sy(-20.8), 6.6, 5.7, sy(-20.8), 6.3, 5.5, sy(-16.8), 6.8, 1.2, sy(-16.8), 6.9, pants, FaceLayer.SmallDetail);
 
             // =====================================================
             // ТОРС
             // =====================================================
             AddClientBlockLocal(-6.8, sy(-16.8), -4.4, 6.8, sy(-10.8), 5.0, dressLight, FaceLayer.SmallDetail);
             AddClientBlockLocal(-7.8, sy(-10.8), -5.0, 7.8, sy(-3.0), 5.7, dress, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-9.4, sy(-3.0), -6.0, 9.4, sy(5.6), 6.8, dressLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-8.6, sy(5.6), -5.3, 8.6, sy(10.5), 6.1, dress, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-8.0, sy(-3.0), -6.0, 8.0, sy(5.6), 6.7, dressLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.0, sy(5.6), -5.2, 9.0, sy(10.5), 6.0, dress, FaceLayer.SmallDetail);
 
             AddClientBlockLocal(-5.6, sy(-1.5), 4.8, -0.7, sy(4.2), 7.8, dressLight, FaceLayer.SmallDetail);
             AddClientBlockLocal(0.7, sy(-1.5), 4.8, 5.6, sy(4.2), 7.8, dressLight, FaceLayer.SmallDetail);
@@ -2075,29 +2553,47 @@ namespace игра_для_проги.Controller
             AddClientQuadLocal(-3.4, sy(9.0), 6.4, 3.4, sy(9.0), 6.4, 1.9, sy(5.4), 7.2, -1.9, sy(5.4), 7.2, skinShade, FaceLayer.SmallDetail);
             AddClientQuadLocal(-5.2, sy(10.2), 5.9, -3.1, sy(10.2), 5.9, -2.5, sy(4.6), 6.6, -4.8, sy(4.6), 6.6, dressLight, FaceLayer.SmallDetail);
             AddClientQuadLocal(3.1, sy(10.2), 5.9, 5.2, sy(10.2), 5.9, 4.8, sy(4.6), 6.6, 2.5, sy(4.6), 6.6, dressLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-11.2, sy(8.4), -4.9, 11.2, sy(12.6), 5.5, dress, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-9.1, sy(9.6), 5.2, 9.1, sy(12.0), 6.3, dressLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.4, sy(8.6), -4.6, 9.4, sy(12.3), 5.2, dress, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-7.9, sy(9.8), 5.2, 7.9, sy(11.8), 6.0, dressLight, FaceLayer.SmallDetail);
+            // Дополнительная детализация тела: талия, грудь, ключицы, бёдра.
+            AddClientQuadLocal(-8.9, sy(9.8), 5.9, -5.6, sy(9.8), 6.2, -4.1, sy(-2.8), 6.8, -7.0, sy(-8.6), 6.2, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.6, sy(9.8), 6.2, 8.9, sy(9.8), 5.9, 7.0, sy(-8.6), 6.2, 4.1, sy(-2.8), 6.8, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.1, sy(4.8), 6.7, 4.1, sy(4.8), 6.7, 2.8, sy(-1.8), 7.45, -2.8, sy(-1.8), 7.45, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.8, sy(-7.8), 6.5, 5.8, sy(-7.8), 6.5, 6.8, sy(-18.8), 7.0, -6.8, sy(-18.8), 7.0, dress, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.2, sy(10.5), 6.3, 3.2, sy(10.5), 6.3, 1.7, sy(7.0), 7.0, -1.7, sy(7.0), 7.0, skinLight, FaceLayer.SmallDetail);
 
             // =====================================================
             // РУКИ + РУКАВА
             // =====================================================
-            // Плечи / рукава.
-            AddClientBlockLocal(-14.6, sy(5.0), -3.0, -10.2, sy(12.8), 3.8, dressLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.2, sy(5.0), -3.0, 14.6, sy(12.8), 3.8, dressLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-13.7, sy(1.0), -2.8, -10.6, sy(5.2), 3.5, dress, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.6, sy(1.0), -2.8, 13.7, sy(5.2), 3.5, dress, FaceLayer.SmallDetail);
+            // Плечи / рукава — увеличены примерно в 2 раза по ширине и толщине,
+            // чтобы плечевой пояс соответствовал размеру основных рук.
+            AddClientBlockLocal(-15.2, sy(1.0), -4.8, -8.0, sy(11.0), 5.4, dressLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(8.0, sy(1.0), -4.8, 15.2, sy(11.0), 5.4, dressLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-15.4, sy(-2.2), -4.2, -9.0, sy(3.2), 4.8, dress, FaceLayer.SmallDetail);
+            AddClientBlockLocal(9.0, sy(-2.2), -4.2, 15.4, sy(3.2), 4.8, dress, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-14.8, sy(4.6), 3.9, -8.2, sy(11.4), 6.6, dressLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(8.2, sy(4.6), 3.9, 14.8, sy(11.4), 6.6, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-7.9, sy(10.0), 5.9, -15.8, sy(9.6), 4.5, -15.0, sy(3.2), 4.7, -8.6, sy(3.8), 5.9, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(15.8, sy(9.6), 4.5, 7.9, sy(10.0), 5.9, 8.6, sy(3.8), 5.9, 15.0, sy(3.2), 4.7, dressLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-15.4, sy(2.2), -4.4, -9.0, sy(2.4), -4.6, -8.2, sy(10.4), -3.8, -15.0, sy(9.8), -3.7, dress, FaceLayer.SmallDetail);
+            AddClientQuadLocal(9.0, sy(2.4), -4.6, 15.4, sy(2.2), -4.4, 15.0, sy(9.8), -3.7, 8.2, sy(10.4), -3.8, dress, FaceLayer.SmallDetail);
 
             // Кожа рук ниже рукава.
-            AddClientBlockLocal(-14.1, sy(-6.0), -2.8, -10.8, sy(1.0), 3.5, skinShade, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.8, sy(-6.0), -2.8, 14.1, sy(1.0), 3.5, skinShade, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-14.2, sy(-10.0), -2.9, -10.6, sy(-6.0), 3.6, skinDark, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.6, sy(-10.0), -2.9, 14.2, sy(-6.0), 3.6, skinDark, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-14.0, sy(-22.5), -2.5, -10.9, sy(-10.0), 3.2, skin, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.9, sy(-22.5), -2.5, 14.0, sy(-10.0), 3.2, skin, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-13.0, sy(-26.0), -2.0, -11.0, sy(-22.5), 2.6, skinShade, FaceLayer.SmallDetail);
-            AddClientBlockLocal(11.0, sy(-26.0), -2.0, 13.0, sy(-22.5), 2.6, skinShade, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-13.8, sy(-30.2), -1.8, -10.4, sy(-26.0), 2.9, skinShade, FaceLayer.SmallDetail);
-            AddClientBlockLocal(10.4, sy(-30.2), -1.8, 13.8, sy(-26.0), 2.9, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-14.5, sy(-6.0), -2.9, -10.0, sy(0.8), 3.6, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(10.0, sy(-6.0), -2.9, 14.5, sy(0.8), 3.6, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-14.4, sy(-10.0), -3.0, -9.9, sy(-6.0), 3.7, skinDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(9.9, sy(-10.0), -3.0, 14.4, sy(-6.0), 3.7, skinDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-14.1, sy(-22.0), -2.7, -10.3, sy(-10.0), 3.4, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(10.3, sy(-22.0), -2.7, 14.1, sy(-10.0), 3.4, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-13.2, sy(-25.6), -2.1, -10.5, sy(-22.0), 2.8, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(10.5, sy(-25.6), -2.1, 13.2, sy(-22.0), 2.8, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-13.6, sy(-29.8), -1.8, -10.0, sy(-25.6), 2.9, skinShade, FaceLayer.SmallDetail);
+            AddClientBlockLocal(10.0, sy(-29.8), -1.8, 13.6, sy(-25.6), 2.9, skinShade, FaceLayer.SmallDetail);
+            // Сглаживаем руки и добавляем чуть более человеческий объём локтям и предплечьям.
+            AddClientQuadLocal(-13.6, sy(-9.4), 2.9, -10.9, sy(-9.4), 2.9, -11.1, sy(-16.4), 3.2, -13.4, sy(-16.4), 3.2, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(10.9, sy(-9.4), 2.9, 13.6, sy(-9.4), 2.9, 13.4, sy(-16.4), 3.2, 11.1, sy(-16.4), 3.2, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-13.2, sy(-16.2), 3.1, -11.0, sy(-16.2), 3.1, -11.4, sy(-24.8), 2.8, -12.9, sy(-24.8), 2.8, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(11.0, sy(-16.2), 3.1, 13.2, sy(-16.2), 3.1, 12.9, sy(-24.8), 2.8, 11.4, sy(-24.8), 2.8, skin, FaceLayer.SmallDetail);
             AddClientBlockLocal(-13.5, sy(-32.2), 1.0, -12.8, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
             AddClientBlockLocal(-12.6, sy(-32.3), 1.0, -11.9, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
             AddClientBlockLocal(-11.7, sy(-32.2), 1.0, -11.0, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
@@ -2113,24 +2609,121 @@ namespace игра_для_проги.Controller
             // Задняя часть головы.
             AddClientBlockLocal(-4.8, sy(17.2), -5.2, 4.8, sy(30.8), 2.0, skin, FaceLayer.SmallDetail);
 
-            // Лицо разбито на много более мелких блоков, чтобы уйти от одного квадрата.
-            AddClientBlockLocal(-2.6, sy(17.0), 4.8, 2.6, sy(18.6), 5.7, skinShade, FaceLayer.SmallDetail); // кончик подбородка
-            AddClientBlockLocal(-3.4, sy(18.5), 4.7, 3.4, sy(20.3), 5.9, skinShade, FaceLayer.SmallDetail); // узкая нижняя челюсть
-            AddClientBlockLocal(-4.5, sy(20.2), 4.8, 4.5, sy(22.2), 6.0, skinShade, FaceLayer.SmallDetail); // нижняя часть лица
-            AddClientBlockLocal(-5.6, sy(22.1), 4.9, 5.6, sy(24.6), 6.4, skin, FaceLayer.SmallDetail); // щеки
-            AddClientBlockLocal(-6.0, sy(24.5), 4.8, 6.0, sy(27.2), 6.3, skin, FaceLayer.SmallDetail); // область глаз
-            AddClientBlockLocal(-5.4, sy(27.1), 4.7, 5.4, sy(29.4), 5.9, skin, FaceLayer.SmallDetail); // верх щек / виски
-            AddClientBlockLocal(-4.6, sy(29.3), 4.5, 4.6, sy(31.4), 5.5, skin, FaceLayer.SmallDetail); // лоб уже
+            // Лицо разбито на ещё более мелкие ступени, чтобы убрать квадратную челюсть.
+            // Нижняя часть собирается в плавный овал: подбородок уже, затем щеки постепенно расширяются.
+            AddClientBlockLocal(-2.15, sy(16.35), 5.16, 2.15, sy(17.35), 6.00, skin, FaceLayer.SmallDetail); // низ подбородка
+            AddClientBlockLocal(-2.70, sy(17.30), 5.13, 2.70, sy(18.30), 6.00, skin, FaceLayer.SmallDetail); // подбородок
+            AddClientBlockLocal(-3.20, sy(18.25), 5.10, 3.20, sy(19.35), 6.04, skin, FaceLayer.SmallDetail); // мягкий переход от подбородка
+            AddClientBlockLocal(-3.70, sy(19.30), 5.06, 3.70, sy(20.45), 6.10, skin, FaceLayer.SmallDetail); // нижняя челюсть без углов
+            AddClientBlockLocal(-4.10, sy(20.40), 5.02, 4.10, sy(21.70), 6.16, skin, FaceLayer.SmallDetail); // челюсть и нижние щёки
+            AddClientBlockLocal(-4.45, sy(21.65), 4.99, 4.45, sy(23.10), 6.22, skin, FaceLayer.SmallDetail); // щёки плавнее
+            AddClientBlockLocal(-4.75, sy(23.00), 4.97, 4.75, sy(24.65), 6.28, skin, FaceLayer.SmallDetail); // средние щёки
+            AddClientBlockLocal(-4.98, sy(24.55), 4.95, 4.98, sy(26.20), 6.30, skin, FaceLayer.SmallDetail); // верх щёк
+            AddClientBlockLocal(-5.10, sy(26.10), 4.90, 5.10, sy(27.75), 6.18, skin, FaceLayer.SmallDetail); // скулы мягче
+            AddClientBlockLocal(-4.96, sy(27.70), 4.84, 4.96, sy(29.35), 5.98, skin, FaceLayer.SmallDetail); // виски
+            AddClientBlockLocal(-4.86, sy(29.35), 4.72, 4.86, sy(31.45), 5.66, skin, FaceLayer.SmallDetail); // лоб
 
-            // Дополнительные боковые грани лица для овального силуэта и узкого подбородка.
-            AddClientQuadLocal(-5.6, sy(24.6), 6.2, -4.4, sy(22.2), 5.9, -3.3, sy(18.6), 5.4, -4.4, sy(20.8), 5.6, skinShade, FaceLayer.SmallDetail);
-            AddClientQuadLocal(4.4, sy(22.2), 5.9, 5.6, sy(24.6), 6.2, 4.4, sy(20.8), 5.6, 3.3, sy(18.6), 5.4, skinShade, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-6.0, sy(27.2), 6.0, -5.2, sy(29.4), 5.8, -4.6, sy(31.4), 5.3, -5.0, sy(28.0), 5.9, skinShade, FaceLayer.SmallDetail);
-            AddClientQuadLocal(5.2, sy(29.4), 5.8, 6.0, sy(27.2), 6.0, 5.0, sy(28.0), 5.9, 4.6, sy(31.4), 5.3, skinShade, FaceLayer.SmallDetail);
+            // Дополнительные боковые грани лица для цельного овального силуэта,
+            // заполненных скул без разрывов и более мягкой линии щёк/подбородка.
+            AddClientQuadLocal(-5.15, sy(26.0), 6.18, -3.95, sy(23.8), 6.10, -2.95, sy(20.4), 5.92, -4.35, sy(21.2), 5.96, Color.FromArgb(241, 227, 223), FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.95, sy(23.8), 6.10, 5.15, sy(26.0), 6.18, 4.35, sy(21.2), 5.96, 2.95, sy(20.4), 5.92, Color.FromArgb(241, 227, 223), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.75, sy(23.10), 6.12, -3.45, sy(20.20), 6.00, -2.65, sy(18.05), 5.78, -3.95, sy(18.55), 5.84, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.45, sy(20.20), 6.00, 4.75, sy(23.10), 6.12, 3.95, sy(18.55), 5.84, 2.65, sy(18.05), 5.78, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.45, sy(19.50), 5.88, -3.10, sy(17.00), 5.64, -2.05, sy(15.45), 5.30, -3.55, sy(15.70), 5.42, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.10, sy(17.00), 5.64, 4.45, sy(19.50), 5.88, 3.55, sy(15.70), 5.42, 2.05, sy(15.45), 5.30, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.25, sy(27.2), 6.02, -5.35, sy(29.5), 5.82, -4.85, sy(31.5), 5.38, -5.35, sy(28.0), 5.92, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.35, sy(29.5), 5.82, 6.25, sy(27.2), 6.02, 5.35, sy(28.0), 5.92, 4.85, sy(31.5), 5.38, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.65, sy(24.85), 6.26, -4.65, sy(22.10), 6.08, -3.75, sy(18.75), 5.92, -5.10, sy(19.50), 5.98, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.65, sy(22.10), 6.08, 5.65, sy(24.85), 6.26, 5.10, sy(19.50), 5.98, 3.75, sy(18.75), 5.92, skin, FaceLayer.SmallDetail);
 
             // Уши.
             AddClientBlockLocal(-7.0, sy(22.6), -1.3, -5.9, sy(26.5), 1.8, skinShade, FaceLayer.SmallDetail);
             AddClientBlockLocal(5.9, sy(22.6), -1.3, 7.0, sy(26.5), 1.8, skinShade, FaceLayer.SmallDetail);
+
+            // Боковой профиль лица: заполняем щёку, скулу, челюсть и переход к шее,
+            // чтобы сбоку лицо не выглядело отдельной плоской маской.
+            AddClientQuadLocal(-6.35, sy(27.0), 1.0, -5.05, sy(26.7), 5.85, -4.45, sy(23.0), 6.15, -6.45, sy(22.5), 1.05, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.05, sy(26.7), 5.85, 6.35, sy(27.0), 1.0, 6.45, sy(22.5), 1.05, 4.45, sy(23.0), 6.15, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.45, sy(22.6), 1.05, -4.45, sy(23.0), 6.15, -3.25, sy(19.0), 5.82, -5.95, sy(18.2), 0.9, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.45, sy(23.0), 6.15, 6.45, sy(22.6), 1.05, 5.95, sy(18.2), 0.9, 3.25, sy(19.0), 5.82, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.55, sy(24.5), 0.7, -5.20, sy(24.2), 4.4, -5.05, sy(22.2), 4.7, -6.65, sy(21.8), 0.55, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.20, sy(24.2), 4.4, 6.55, sy(24.5), 0.7, 6.65, sy(21.8), 0.55, 5.05, sy(22.2), 4.7, skinLight, FaceLayer.SmallDetail);
+            // Аккуратная деталь профиля только на щеке/скуле, без удлинения шеи вниз.
+            AddClientQuadLocal(-5.70, sy(21.8), 4.60, -4.50, sy(21.4), 6.10, -3.55, sy(19.0), 5.82, -5.25, sy(19.0), 4.20, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.50, sy(21.4), 6.10, 5.70, sy(21.8), 4.60, 5.25, sy(19.0), 4.20, 3.55, sy(19.0), 5.82, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.95, sy(21.2), 5.92, -4.65, sy(21.2), 6.55, -4.25, sy(19.9), 6.45, -5.55, sy(19.7), 5.60, lipDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.65, sy(21.2), 6.55, 5.95, sy(21.2), 5.92, 5.55, sy(19.7), 5.60, 4.25, sy(19.9), 6.45, lipDark, FaceLayer.SmallDetail);
+            // Мелкие skin-плитки для округления подбородка, нижней челюсти и скул.
+            AddClientQuadLocal(-3.25, sy(18.6), 7.18, -2.25, sy(18.25), 7.22, -1.95, sy(16.95), 7.27, -2.95, sy(17.20), 7.24, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.25, sy(18.25), 7.22, 3.25, sy(18.6), 7.18, 2.95, sy(17.20), 7.24, 1.95, sy(16.95), 7.27, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.45, sy(17.35), 7.25, -0.95, sy(17.00), 7.30, -0.55, sy(15.90), 7.34, -1.85, sy(15.85), 7.32, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(0.95, sy(17.00), 7.30, 2.45, sy(17.35), 7.25, 1.85, sy(15.85), 7.32, 0.55, sy(15.90), 7.34, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.55, sy(24.65), 7.04, -4.60, sy(24.40), 7.10, -4.10, sy(22.55), 7.13, -5.20, sy(22.20), 7.08, Color.FromArgb(243, 229, 225), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.60, sy(24.40), 7.10, 5.55, sy(24.65), 7.04, 5.20, sy(22.20), 7.08, 4.10, sy(22.55), 7.13, Color.FromArgb(243, 229, 225), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.20, sy(22.15), 7.08, -4.30, sy(21.75), 7.12, -3.60, sy(20.10), 7.14, -4.70, sy(19.80), 7.10, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.30, sy(21.75), 7.12, 5.20, sy(22.15), 7.08, 4.70, sy(19.80), 7.10, 3.60, sy(20.10), 7.14, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.20, sy(25.4), 5.0, -5.65, sy(25.6), 6.25, -5.50, sy(22.6), 6.20, -6.05, sy(22.4), 4.8, noseShadow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.65, sy(25.6), 6.25, 6.20, sy(25.4), 5.0, 6.05, sy(22.4), 4.8, 5.50, sy(22.6), 6.20, noseShadow, FaceLayer.SmallDetail);
+
+            // Дополнительный слой мелких плиток: они перекрывают резкие ступени
+            // нижней челюсти и собирают подбородок/скулы в почти ровный овал.
+            AddClientQuadLocal(-0.30, sy(14.95), 7.44, 0.30, sy(14.95), 7.44, 0.22, sy(14.62), 7.46, -0.22, sy(14.62), 7.46, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.82, sy(15.35), 7.45, 0.82, sy(15.35), 7.45, 0.60, sy(14.95), 7.47, -0.60, sy(14.95), 7.47, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.34, sy(15.82), 7.46, 1.34, sy(15.82), 7.46, 1.05, sy(15.32), 7.48, -1.05, sy(15.32), 7.48, Color.FromArgb(250, 236, 232), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.90, sy(16.35), 7.46, 1.90, sy(16.35), 7.46, 1.55, sy(15.78), 7.49, -1.55, sy(15.78), 7.49, Color.FromArgb(248, 234, 231), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.42, sy(16.95), 7.47, 2.42, sy(16.95), 7.47, 2.05, sy(16.32), 7.50, -2.05, sy(16.32), 7.50, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.92, sy(17.62), 7.47, 2.92, sy(17.62), 7.47, 2.55, sy(16.90), 7.50, -2.55, sy(16.90), 7.50, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.35, sy(18.32), 7.46, 3.35, sy(18.32), 7.46, 3.02, sy(17.58), 7.49, -3.02, sy(17.58), 7.49, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.72, sy(19.05), 7.44, -2.30, sy(19.05), 7.44, -2.64, sy(18.18), 7.48, -3.50, sy(18.18), 7.48, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.30, sy(19.05), 7.44, 3.72, sy(19.05), 7.44, 3.50, sy(18.18), 7.48, 2.64, sy(18.18), 7.48, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.18, sy(19.92), 7.39, -3.10, sy(19.92), 7.39, -3.36, sy(18.95), 7.45, -4.02, sy(18.95), 7.45, Color.FromArgb(242, 225, 222), FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.10, sy(19.92), 7.39, 4.18, sy(19.92), 7.39, 4.02, sy(18.95), 7.45, 3.36, sy(18.95), 7.45, Color.FromArgb(242, 225, 222), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.76, sy(21.00), 7.33, -3.92, sy(21.00), 7.33, -4.08, sy(19.82), 7.40, -4.62, sy(19.82), 7.40, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.92, sy(21.00), 7.33, 4.76, sy(21.00), 7.33, 4.62, sy(19.82), 7.40, 4.08, sy(19.82), 7.40, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.18, sy(22.35), 7.27, -4.46, sy(22.35), 7.27, -4.50, sy(20.92), 7.34, -5.00, sy(20.92), 7.34, Color.FromArgb(244, 228, 224), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.46, sy(22.35), 7.27, 5.18, sy(22.35), 7.27, 5.00, sy(20.92), 7.34, 4.50, sy(20.92), 7.34, Color.FromArgb(244, 228, 224), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.60, sy(24.10), 7.20, -4.96, sy(24.10), 7.20, -4.86, sy(22.28), 7.29, -5.36, sy(22.28), 7.29, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.96, sy(24.10), 7.20, 5.60, sy(24.10), 7.20, 5.36, sy(22.28), 7.29, 4.86, sy(22.28), 7.29, skinLight, FaceLayer.SmallDetail);
+
+            // Усиленное скругление нижней части лица поверх предыдущей формы:
+            // добавляем много мелких плиток, чтобы подбородок, щеки, скулы и нижняя челюсть
+            // читались как плавный овал без острых диагоналей.
+            AddClientQuadLocal(-0.42, sy(14.62), 7.45, 0.42, sy(14.62), 7.45, 0.32, sy(14.26), 7.47, -0.32, sy(14.26), 7.47, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.96, sy(15.02), 7.46, 0.96, sy(15.02), 7.46, 0.76, sy(14.62), 7.48, -0.76, sy(14.62), 7.48, Color.FromArgb(249, 235, 231), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.54, sy(15.42), 7.47, 1.54, sy(15.42), 7.47, 1.28, sy(14.98), 7.49, -1.28, sy(14.98), 7.49, Color.FromArgb(249, 235, 231), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.12, sy(15.90), 7.48, 2.12, sy(15.90), 7.48, 1.84, sy(15.40), 7.50, -1.84, sy(15.40), 7.50, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.66, sy(16.45), 7.48, 2.66, sy(16.45), 7.48, 2.36, sy(15.90), 7.51, -2.36, sy(15.90), 7.51, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.18, sy(17.02), 7.48, 3.18, sy(17.02), 7.48, 2.88, sy(16.42), 7.51, -2.88, sy(16.42), 7.51, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.66, sy(17.66), 7.47, 3.66, sy(17.66), 7.47, 3.36, sy(17.00), 7.50, -3.36, sy(17.00), 7.50, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.08, sy(18.36), 7.45, 4.08, sy(18.36), 7.45, 3.82, sy(17.62), 7.49, -3.82, sy(17.62), 7.49, Color.FromArgb(246, 230, 226), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.46, sy(19.12), 7.42, 4.46, sy(19.12), 7.42, 4.22, sy(18.34), 7.47, -4.22, sy(18.34), 7.47, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.82, sy(19.98), 7.38, 4.82, sy(19.98), 7.38, 4.60, sy(19.14), 7.44, -4.60, sy(19.14), 7.44, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.12, sy(20.94), 7.34, 5.12, sy(20.94), 7.34, 4.92, sy(20.04), 7.41, -4.92, sy(20.04), 7.41, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.36, sy(21.96), 7.29, 5.36, sy(21.96), 7.29, 5.16, sy(21.02), 7.36, -5.16, sy(21.02), 7.36, Color.FromArgb(244, 228, 224), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.58, sy(23.08), 7.24, -4.96, sy(23.08), 7.24, -4.96, sy(21.96), 7.31, -5.38, sy(21.96), 7.31, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.96, sy(23.08), 7.24, 5.58, sy(23.08), 7.24, 5.38, sy(21.96), 7.31, 4.96, sy(21.96), 7.31, skinLight, FaceLayer.SmallDetail);
+
+            // Дополнительные боковые смягчающие плитки убирают "угол" между щекой и челюстью.
+            AddClientQuadLocal(-4.92, sy(20.22), 7.18, -3.84, sy(19.92), 7.26, -3.24, sy(18.00), 7.30, -4.36, sy(17.78), 7.24, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.84, sy(19.92), 7.26, 4.92, sy(20.22), 7.18, 4.36, sy(17.78), 7.24, 3.24, sy(18.00), 7.30, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.22, sy(22.38), 7.12, -4.18, sy(22.10), 7.20, -3.54, sy(20.20), 7.25, -4.70, sy(19.96), 7.18, Color.FromArgb(243, 229, 225), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.18, sy(22.10), 7.20, 5.22, sy(22.38), 7.12, 4.70, sy(19.96), 7.18, 3.54, sy(20.20), 7.25, Color.FromArgb(243, 229, 225), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.42, sy(24.28), 7.06, -4.56, sy(24.12), 7.15, -4.08, sy(22.38), 7.20, -5.02, sy(22.24), 7.12, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.56, sy(24.12), 7.15, 5.42, sy(24.28), 7.06, 5.02, sy(22.24), 7.12, 4.08, sy(22.38), 7.20, skinLight, FaceLayer.SmallDetail);
+            // Ещё один слой мелких перекрытий срезает квадратные углы у челюсти и делает низ лица овальнее.
+            AddClientQuadLocal(-4.34, sy(20.78), 7.26, -3.24, sy(20.42), 7.30, -2.42, sy(17.92), 7.34, -3.52, sy(17.48), 7.28, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.24, sy(20.42), 7.30, 4.34, sy(20.78), 7.26, 3.52, sy(17.48), 7.28, 2.42, sy(17.92), 7.34, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.64, sy(22.28), 7.20, -3.56, sy(21.96), 7.24, -2.86, sy(19.68), 7.30, -3.96, sy(19.22), 7.23, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.56, sy(21.96), 7.24, 4.64, sy(22.28), 7.20, 3.96, sy(19.22), 7.23, 2.86, sy(19.68), 7.30, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.82, sy(23.92), 7.13, -3.94, sy(23.70), 7.18, -3.36, sy(21.84), 7.24, -4.28, sy(21.58), 7.18, Color.FromArgb(245, 230, 226), FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.94, sy(23.70), 7.18, 4.82, sy(23.92), 7.13, 4.28, sy(21.58), 7.18, 3.36, sy(21.84), 7.24, Color.FromArgb(245, 230, 226), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.08, sy(17.10), 7.36, 2.08, sy(17.10), 7.36, 1.72, sy(16.30), 7.40, -1.72, sy(16.30), 7.40, Color.FromArgb(248, 234, 230), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.34, sy(16.30), 7.40, 1.34, sy(16.30), 7.40, 1.06, sy(15.45), 7.43, -1.06, sy(15.45), 7.43, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.82, sy(15.52), 7.42, 0.82, sy(15.52), 7.42, 0.58, sy(14.86), 7.45, -0.58, sy(14.86), 7.45, skinLight, FaceLayer.SmallDetail);
+            // Два узких кожных перекрытия в промежутке между глазами и бровями:
+            // закрывают коричневые вертикальные просветы у внешних краёв глаз.
+            AddClientQuadLocal(-5.34, sy(27.78), 7.50, -4.76, sy(27.78), 7.50, -4.78, sy(27.10), 7.50, -5.32, sy(27.10), 7.50, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.76, sy(27.78), 7.50, 5.34, sy(27.78), 7.50, 5.32, sy(27.10), 7.50, 4.78, sy(27.10), 7.50, skin, FaceLayer.SmallDetail);
 
             // =====================================================
             // ВОЛОСЫ — ГОРАЗДО БОЛЬШЕ И КРУГЛЕЕ
@@ -2146,20 +2739,21 @@ namespace игра_для_проги.Controller
             AddClientBlockLocal(-7.2, sy(32.0), -7.0, 7.2, sy(36.2), 2.8, hairLight, FaceLayer.SmallDetail);
             AddClientBlockLocal(-5.8, sy(34.2), -5.2, 5.8, sy(37.0), 1.8, hairLight, FaceLayer.SmallDetail);
 
-            // Боковые массы волос, чтобы не было лысых зон.
-            AddClientBlockLocal(-9.2, sy(20.0), -4.8, -5.2, sy(31.8), 5.6, hairDark, FaceLayer.SmallDetail);
-            AddClientBlockLocal(5.2, sy(20.0), -4.8, 9.2, sy(31.8), 5.6, hairDark, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-8.7, sy(13.5), -3.8, -5.1, sy(23.2), 5.8, hair, FaceLayer.SmallDetail);
-            AddClientBlockLocal(5.1, sy(13.5), -3.8, 8.7, sy(23.2), 5.8, hair, FaceLayer.SmallDetail);
-            AddClientBlockLocal(-8.0, sy(6.0), -3.0, -4.6, sy(15.4), 5.3, hair, FaceLayer.SmallDetail);
-            AddClientBlockLocal(4.6, sy(6.0), -3.0, 8.0, sy(15.4), 5.3, hair, FaceLayer.SmallDetail);
+            // Боковые массы волос: НИЖЕ ГЛАЗ волосы полностью уведены назад,
+            // чтобы спереди и сбоку у лица были видны щека, скула и линия подбородка.
+            // Ниже глаз рядом с лицом больше нет никаких передних прядей.
+            AddClientBlockLocal(-9.6, sy(21.0), -8.2, -7.2, sy(31.8), -1.4, hairDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(7.2, sy(21.0), -8.2, 9.6, sy(31.8), -1.4, hairDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-9.3, sy(14.8), -8.8, -7.0, sy(24.5), -2.4, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(7.0, sy(14.8), -8.8, 9.3, sy(24.5), -2.4, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-8.5, sy(8.5), -8.2, -6.8, sy(17.5), -2.8, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(6.8, sy(8.5), -8.2, 8.5, sy(17.5), -2.8, hair, FaceLayer.SmallDetail);
 
-            // Передние пряди у лица.
-            AddClientBlockLocal(-7.2, sy(16.2), 4.8, -5.7, sy(28.2), 6.5, hairLight, FaceLayer.SmallDetail);
-            AddClientBlockLocal(5.7, sy(16.2), 4.8, 7.2, sy(28.2), 6.5, hairLight, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-6.0, sy(30.6), 4.8, 6.0, sy(30.6), 4.8, 4.2, sy(29.2), 6.0, -4.2, sy(29.2), 6.0, hairLight, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-4.8, sy(28.2), 5.4, -3.6, sy(26.2), 5.9, -3.8, sy(17.8), 6.3, -5.4, sy(17.8), 6.2, hairLight, FaceLayer.SmallDetail);
-            AddClientQuadLocal(3.6, sy(26.2), 5.9, 4.8, sy(28.2), 5.4, 5.4, sy(17.8), 6.2, 3.8, sy(17.8), 6.3, hairLight, FaceLayer.SmallDetail);
+            // Над глазами / над лбом оставляем только верхнюю линию волос.
+            // На щёки, скулы и область ниже глаз волосы не заходят вообще.
+            AddClientQuadLocal(-5.8, sy(32.6), 6.15, 5.8, sy(32.6), 6.15, 4.1, sy(30.6), 6.75, -4.1, sy(30.6), 6.75, hairLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.7, sy(31.1), 6.10, -3.5, sy(30.9), 6.55, -3.8, sy(29.7), 6.62, -5.9, sy(29.7), 6.18, hairLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.5, sy(30.9), 6.55, 5.7, sy(31.1), 6.10, 5.9, sy(29.7), 6.18, 3.8, sy(29.7), 6.62, hairLight, FaceLayer.SmallDetail);
 
             // =====================================================
             // ЛИЦО
@@ -2198,12 +2792,16 @@ namespace игра_для_проги.Controller
             // Ресницы.
             AddClientQuadLocal(-5.05, sy(27.00), 7.40, -2.10, sy(27.00), 7.40, -2.35, sy(26.55), 7.40, -4.80, sy(26.55), 7.40, brow, FaceLayer.SmallDetail);
             AddClientQuadLocal(2.10, sy(27.00), 7.40, 5.05, sy(27.00), 7.40, 4.80, sy(26.55), 7.40, 2.35, sy(26.55), 7.40, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-5.20, sy(26.55), 7.38, -4.95, sy(26.55), 7.38, -4.95, sy(26.15), 7.38, -5.20, sy(26.15), 7.38, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-2.20, sy(26.55), 7.38, -1.95, sy(26.55), 7.38, -1.95, sy(26.15), 7.38, -2.20, sy(26.15), 7.38, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(1.95, sy(26.55), 7.38, 2.20, sy(26.55), 7.38, 2.20, sy(26.15), 7.38, 1.95, sy(26.15), 7.38, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(4.95, sy(26.55), 7.38, 5.20, sy(26.55), 7.38, 5.20, sy(26.15), 7.38, 4.95, sy(26.15), 7.38, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(-4.6, sy(28.7), 6.96, -2.7, sy(28.7), 6.96, -2.95, sy(27.95), 6.96, -4.35, sy(27.95), 6.96, brow, FaceLayer.SmallDetail);
-            AddClientQuadLocal(2.7, sy(28.7), 6.96, 4.6, sy(28.7), 6.96, 4.35, sy(27.95), 6.96, 2.95, sy(27.95), 6.96, brow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.20, sy(26.55), 7.38, -4.95, sy(26.55), 7.38, -4.95, sy(26.15), 7.38, -5.20, sy(26.15), 7.38, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.20, sy(26.55), 7.38, -1.95, sy(26.55), 7.38, -1.95, sy(26.15), 7.38, -2.20, sy(26.15), 7.38, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.95, sy(26.55), 7.38, 2.20, sy(26.55), 7.38, 2.20, sy(26.15), 7.38, 1.95, sy(26.15), 7.38, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.95, sy(26.55), 7.38, 5.20, sy(26.55), 7.38, 5.20, sy(26.15), 7.38, 4.95, sy(26.15), 7.38, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.05, sy(28.52), 6.96, -2.45, sy(28.88), 6.96, -2.78, sy(28.12), 6.96, -4.82, sy(27.82), 6.96, brow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.45, sy(28.88), 6.96, 5.05, sy(28.52), 6.96, 4.82, sy(27.82), 6.96, 2.78, sy(28.12), 6.96, brow, FaceLayer.SmallDetail);
+            // Поверхностные кожные заплатки в зазоре между глазом и бровью: убирают
+            // коричневые палочки, если боковые текстуры/ресницы просвечивают под углом.
+            AddClientQuadLocal(-5.38, sy(27.78), 7.52, -4.72, sy(27.78), 7.52, -4.74, sy(27.12), 7.52, -5.36, sy(27.12), 7.52, Color.FromArgb(246, 229, 225), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.72, sy(27.78), 7.52, 5.38, sy(27.78), 7.52, 5.36, sy(27.12), 7.52, 4.74, sy(27.12), 7.52, Color.FromArgb(246, 229, 225), FaceLayer.SmallDetail);
 
             // Щёки.
             AddClientQuadLocal(-5.8, sy(23.8), 6.9, -4.6, sy(23.8), 6.9, -4.6, sy(22.5), 6.9, -5.8, sy(22.5), 6.9, cheek, FaceLayer.SmallDetail);
@@ -2216,6 +2814,190 @@ namespace игра_для_проги.Controller
             AddClientQuadLocal(-1.65, sy(20.00), 7.14, 1.65, sy(20.00), 7.14, 1.15, sy(19.15), 7.18, -1.15, sy(19.15), 7.18, lipLight, FaceLayer.SmallDetail);
             AddClientQuadLocal(-1.25, sy(19.55), 7.21, 1.25, sy(19.55), 7.21, 0.88, sy(18.78), 7.23, -0.88, sy(18.78), 7.23, lipDark, FaceLayer.SmallDetail);
             AddClientQuadLocal(-0.82, sy(19.78), 7.20, 0.82, sy(19.78), 7.20, 0.42, sy(19.42), 7.22, -0.42, sy(19.42), 7.22, lipLight, FaceLayer.SmallDetail);
+
+            // =====================================================
+            // ДОПОЛНИТЕЛЬНАЯ ДЕТАЛИЗАЦИЯ ЛИЦА ТИА
+            // =====================================================
+
+            // Скулы, виски и более узкая челюсть — чтобы лицо выглядело менее квадратным.
+            AddClientQuadLocal(-6.15, sy(30.1), 6.70, -5.10, sy(30.1), 6.85, -5.25, sy(27.9), 6.98, -6.25, sy(27.6), 6.82, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.10, sy(30.1), 6.85, 6.15, sy(30.1), 6.70, 6.25, sy(27.6), 6.82, 5.25, sy(27.9), 6.98, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.50, sy(24.7), 6.70, -5.15, sy(24.7), 6.93, -4.90, sy(21.4), 7.08, -6.05, sy(21.0), 6.86, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.15, sy(24.7), 6.93, 6.50, sy(24.7), 6.70, 6.05, sy(21.0), 6.86, 4.90, sy(21.4), 7.08, skinShade, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.00, sy(18.6), 7.12, -1.05, sy(18.6), 7.18, -0.72, sy(16.95), 7.24, -2.15, sy(16.0), 7.18, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.05, sy(18.6), 7.18, 3.00, sy(18.6), 7.12, 2.15, sy(16.0), 7.18, 0.72, sy(16.95), 7.24, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.25, sy(17.85), 7.20, 1.25, sy(17.85), 7.20, 0.62, sy(16.05), 7.32, -0.62, sy(16.05), 7.32, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.70, sy(16.70), 7.30, 0.70, sy(16.70), 7.30, 0.18, sy(15.10), 7.38, -0.18, sy(15.10), 7.38, Color.FromArgb(244, 228, 224), FaceLayer.SmallDetail);
+
+            // Переносица, кончик носа, ноздри.
+            AddClientBlockLocal(-0.14, sy(26.3), 6.78, 0.14, sy(29.0), 7.05, skinDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-0.28, sy(23.5), 6.96, 0.28, sy(24.9), 7.38, noseShadow, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-0.42, sy(22.7), 7.02, -0.12, sy(23.3), 7.28, Color.FromArgb(182, 150, 145), FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.12, sy(22.7), 7.02, 0.42, sy(23.3), 7.28, Color.FromArgb(182, 150, 145), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.62, sy(22.15), 7.07, 0.62, sy(22.15), 7.07, 0.40, sy(21.76), 7.10, -0.40, sy(21.76), 7.10, skinLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-0.48, sy(22.15), 7.13, -0.26, sy(21.86), 7.28, Color.FromArgb(132, 94, 96), FaceLayer.SmallDetail);
+            AddClientBlockLocal(0.26, sy(22.15), 7.13, 0.48, sy(21.86), 7.28, Color.FromArgb(132, 94, 96), FaceLayer.SmallDetail);
+
+            // Веки, тени под глазами и дополнительные блики для более круглых глаз.
+            AddClientQuadLocal(-4.95, sy(27.05), 7.34, -2.00, sy(27.05), 7.34, -2.32, sy(26.62), 7.34, -4.70, sy(26.62), 7.34, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.00, sy(27.05), 7.34, 4.95, sy(27.05), 7.34, 4.70, sy(26.62), 7.34, 2.32, sy(26.62), 7.34, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.85, sy(24.60), 7.16, -2.18, sy(24.60), 7.16, -2.34, sy(24.12), 7.13, -4.68, sy(24.12), 7.13, Color.FromArgb(215, 188, 184), FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.18, sy(24.60), 7.16, 4.85, sy(24.60), 7.16, 4.68, sy(24.12), 7.13, 2.34, sy(24.12), 7.13, Color.FromArgb(215, 188, 184), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.48, sy(26.20), 7.26, -2.62, sy(26.20), 7.26, -2.62, sy(24.90), 7.26, -4.48, sy(24.90), 7.26, Color.FromArgb(132, 170, 162), FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.62, sy(26.20), 7.26, 4.48, sy(26.20), 7.26, 4.48, sy(24.90), 7.26, 2.62, sy(24.90), 7.26, Color.FromArgb(132, 170, 162), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.74, sy(25.82), 7.31, -3.36, sy(25.82), 7.31, -3.36, sy(25.42), 7.31, -3.74, sy(25.42), 7.31, Color.FromArgb(150, 196, 186), FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.36, sy(25.82), 7.31, 3.74, sy(25.82), 7.31, 3.74, sy(25.42), 7.31, 3.36, sy(25.42), 7.31, Color.FromArgb(150, 196, 186), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.56, sy(25.55), 7.38, -4.28, sy(25.55), 7.38, -4.28, sy(25.10), 7.38, -4.56, sy(25.10), 7.38, Color.White, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.28, sy(25.55), 7.38, 4.56, sy(25.55), 7.38, 4.56, sy(25.10), 7.38, 4.28, sy(25.10), 7.38, Color.White, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.35, sy(26.82), 7.43, -4.95, sy(26.82), 7.43, -4.95, sy(26.32), 7.43, -5.35, sy(26.32), 7.43, brow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.10, sy(26.82), 7.43, -1.65, sy(26.82), 7.43, -1.65, sy(26.32), 7.43, -2.10, sy(26.32), 7.43, brow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.65, sy(26.82), 7.43, 2.10, sy(26.82), 7.43, 2.10, sy(26.32), 7.43, 1.65, sy(26.32), 7.43, brow, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.95, sy(26.82), 7.43, 5.35, sy(26.82), 7.43, 5.35, sy(26.32), 7.43, 4.95, sy(26.32), 7.43, brow, FaceLayer.SmallDetail);
+
+            // Дополнительное скругление и детализация глаз — больше мелких сегментов.
+            AddClientQuadLocal(-4.92, sy(26.90), 7.36, -4.55, sy(26.90), 7.36, -4.35, sy(26.50), 7.36, -4.70, sy(26.42), 7.36, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.35, sy(26.92), 7.36, -2.00, sy(26.84), 7.36, -2.18, sy(26.48), 7.36, -2.52, sy(26.52), 7.36, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.85, sy(24.52), 7.20, -4.52, sy(24.60), 7.20, -4.30, sy(24.90), 7.20, -4.62, sy(24.98), 7.20, Color.FromArgb(228, 206, 202), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.45, sy(24.60), 7.20, -2.12, sy(24.52), 7.20, -2.36, sy(24.98), 7.20, -2.70, sy(24.90), 7.20, Color.FromArgb(228, 206, 202), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.55, sy(26.90), 7.36, 4.92, sy(26.90), 7.36, 4.70, sy(26.42), 7.36, 4.35, sy(26.50), 7.36, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.00, sy(26.84), 7.36, 2.35, sy(26.92), 7.36, 2.52, sy(26.52), 7.36, 2.18, sy(26.48), 7.36, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.52, sy(24.60), 7.20, 4.85, sy(24.52), 7.20, 4.62, sy(24.98), 7.20, 4.30, sy(24.90), 7.20, Color.FromArgb(228, 206, 202), FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.12, sy(24.52), 7.20, 2.45, sy(24.60), 7.20, 2.70, sy(24.90), 7.20, 2.36, sy(24.98), 7.20, Color.FromArgb(228, 206, 202), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.34, sy(26.30), 7.28, -2.70, sy(26.30), 7.28, -2.70, sy(24.72), 7.28, -4.34, sy(24.72), 7.28, Color.FromArgb(120, 162, 154), FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.70, sy(26.30), 7.28, 4.34, sy(26.30), 7.28, 4.34, sy(24.72), 7.28, 2.70, sy(24.72), 7.28, Color.FromArgb(120, 162, 154), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.02, sy(26.02), 7.31, -3.02, sy(26.02), 7.31, -3.02, sy(25.00), 7.31, -4.02, sy(25.00), 7.31, Color.FromArgb(152, 200, 190), FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.02, sy(26.02), 7.31, 4.02, sy(26.02), 7.31, 4.02, sy(25.00), 7.31, 3.02, sy(25.00), 7.31, Color.FromArgb(152, 200, 190), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.84, sy(25.76), 7.34, -3.26, sy(25.76), 7.34, -3.26, sy(25.20), 7.34, -3.84, sy(25.20), 7.34, irisCore, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.26, sy(25.76), 7.34, 3.84, sy(25.76), 7.34, 3.84, sy(25.20), 7.34, 3.26, sy(25.20), 7.34, irisCore, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.74, sy(25.66), 7.38, -3.36, sy(25.66), 7.38, -3.36, sy(25.28), 7.38, -3.74, sy(25.28), 7.38, pupil, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.36, sy(25.66), 7.38, 3.74, sy(25.66), 7.38, 3.74, sy(25.28), 7.38, 3.36, sy(25.28), 7.38, pupil, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.20, sy(25.32), 7.40, -3.98, sy(25.32), 7.40, -3.98, sy(25.02), 7.40, -4.20, sy(25.02), 7.40, Color.White, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.98, sy(25.32), 7.40, 4.20, sy(25.32), 7.40, 4.20, sy(25.02), 7.40, 3.98, sy(25.02), 7.40, Color.White, FaceLayer.SmallDetail);
+
+            // Губы: контур, впадинка над губой, более мягкая форма.
+            AddClientQuadLocal(-1.92, sy(19.86), 7.06, 1.92, sy(19.86), 7.06, 1.45, sy(19.30), 7.09, -1.45, sy(19.30), 7.09, lipDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.18, sy(19.64), 7.18, -0.12, sy(19.64), 7.18, -0.30, sy(19.24), 7.22, -0.92, sy(19.24), 7.22, lipLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(0.12, sy(19.64), 7.18, 1.18, sy(19.64), 7.18, 0.92, sy(19.24), 7.22, 0.30, sy(19.24), 7.22, lipLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.18, sy(20.02), 7.08, 0.18, sy(20.02), 7.08, 0.08, sy(19.62), 7.13, -0.08, sy(19.62), 7.13, Color.FromArgb(185, 145, 146), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.34, sy(18.90), 7.22, 1.34, sy(18.90), 7.22, 0.92, sy(18.32), 7.26, -0.92, sy(18.32), 7.26, lip, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.78, sy(18.70), 7.25, 0.78, sy(18.70), 7.25, 0.38, sy(18.42), 7.29, -0.38, sy(18.42), 7.29, lipLight, FaceLayer.SmallDetail);
+
+            // Мелкие детали лица: подбородок, румянец, височные тени.
+            AddClientQuadLocal(-1.20, sy(18.05), 7.16, 1.20, sy(18.05), 7.16, 0.62, sy(17.00), 7.22, -0.62, sy(17.00), 7.22, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.85, sy(22.55), 6.98, -4.85, sy(22.55), 6.98, -4.70, sy(21.45), 7.02, -5.65, sy(21.45), 7.02, Color.FromArgb(238, 196, 200), FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.85, sy(22.55), 6.98, 5.85, sy(22.55), 6.98, 5.65, sy(21.45), 7.02, 4.70, sy(21.45), 7.02, Color.FromArgb(238, 196, 200), FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.35, sy(29.6), 6.55, -5.55, sy(29.6), 6.55, -5.55, sy(26.1), 6.58, -6.35, sy(26.1), 6.58, Color.FromArgb(209, 180, 176), FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.55, sy(29.6), 6.55, 6.35, sy(29.6), 6.55, 6.35, sy(26.1), 6.58, 5.55, sy(26.1), 6.58, Color.FromArgb(209, 180, 176), FaceLayer.SmallDetail);
+
+            // Дополнительная детализация нижней части лица: мягкая челюсть, овальный подбородок, светлая центральная зона.
+            AddClientQuadLocal(-4.20, sy(21.35), 6.92, -2.45, sy(21.35), 7.02, -1.55, sy(19.05), 7.11, -3.35, sy(18.45), 7.04, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.45, sy(21.35), 7.02, 4.20, sy(21.35), 6.92, 3.35, sy(18.45), 7.04, 1.55, sy(19.05), 7.11, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.10, sy(20.10), 7.00, 3.10, sy(20.10), 7.00, 2.05, sy(18.10), 7.12, -2.05, sy(18.10), 7.12, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.30, sy(18.05), 7.12, 2.30, sy(18.05), 7.12, 1.45, sy(16.35), 7.22, -1.45, sy(16.35), 7.22, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.05, sy(20.55), 6.98, -2.00, sy(19.82), 7.06, -1.25, sy(17.92), 7.13, -2.45, sy(17.48), 7.09, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.00, sy(19.82), 7.06, 3.05, sy(20.55), 6.98, 2.45, sy(17.48), 7.09, 1.25, sy(17.92), 7.13, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.58, sy(18.30), 7.18, 0.58, sy(18.30), 7.18, 0.18, sy(16.95), 7.23, -0.18, sy(16.95), 7.23, skin, FaceLayer.SmallDetail);
+
+            // Дополнительное скругление нижней челюсти и мягкой линии подбородка.
+            AddClientQuadLocal(-2.75, sy(18.75), 7.07, -1.20, sy(18.00), 7.15, -0.75, sy(16.45), 7.22, -2.10, sy(16.65), 7.20, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(1.20, sy(18.00), 7.15, 2.75, sy(18.75), 7.07, 2.10, sy(16.65), 7.20, 0.75, sy(16.45), 7.22, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.10, sy(17.20), 7.18, 2.10, sy(17.20), 7.18, 1.25, sy(15.80), 7.26, -1.25, sy(15.80), 7.26, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.85, sy(24.8), 6.86, -4.05, sy(24.8), 6.86, -3.30, sy(20.8), 6.98, -5.15, sy(20.2), 6.94, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.05, sy(24.8), 6.86, 5.85, sy(24.8), 6.86, 5.15, sy(20.2), 6.94, 3.30, sy(20.8), 6.98, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.60, sy(21.15), 6.95, -3.05, sy(20.55), 7.03, -1.85, sy(17.80), 7.15, -3.65, sy(17.05), 7.08, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.05, sy(20.55), 7.03, 4.60, sy(21.15), 6.95, 3.65, sy(17.05), 7.08, 1.85, sy(17.80), 7.15, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.00, sy(18.95), 7.06, -2.30, sy(18.42), 7.14, -1.40, sy(16.30), 7.21, -3.10, sy(15.92), 7.16, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.30, sy(18.42), 7.14, 4.00, sy(18.95), 7.06, 3.10, sy(15.92), 7.16, 1.40, sy(16.30), 7.21, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.45, sy(16.72), 7.19, 2.45, sy(16.72), 7.19, 1.30, sy(15.50), 7.26, -1.30, sy(15.50), 7.26, skin, FaceLayer.SmallDetail);
+
+            // Срезаем квадратные углы снизу лица: выстраиваем более плавный овальный силуэт.
+            AddClientQuadLocal(-4.58, sy(22.20), 7.00, -3.18, sy(21.20), 7.06, -2.35, sy(18.62), 7.18, -3.82, sy(17.92), 7.11, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.18, sy(21.20), 7.06, 4.58, sy(22.20), 7.00, 3.82, sy(17.92), 7.11, 2.35, sy(18.62), 7.18, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.78, sy(18.92), 7.10, -2.18, sy(18.25), 7.18, -1.18, sy(16.18), 7.26, -2.92, sy(15.82), 7.20, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.18, sy(18.25), 7.18, 3.78, sy(18.92), 7.10, 2.92, sy(15.82), 7.20, 1.18, sy(16.18), 7.26, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.92, sy(16.72), 7.22, 1.92, sy(16.72), 7.22, 1.08, sy(15.26), 7.30, -1.08, sy(15.26), 7.30, skinLight, FaceLayer.SmallDetail);
+
+            // Дополнительное округление именно челюсти: ещё сильнее срезаем нижние углы,
+            // чтобы квадратная масса по бокам визуально превращалась в мягкий овал.
+            AddClientQuadLocal(-5.12, sy(21.72), 6.98, -3.45, sy(20.98), 7.05, -2.10, sy(17.18), 7.18, -4.12, sy(16.52), 7.08, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(3.45, sy(20.98), 7.05, 5.12, sy(21.72), 6.98, 4.12, sy(16.52), 7.08, 2.10, sy(17.18), 7.18, skinLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-4.18, sy(18.28), 7.10, -2.54, sy(17.74), 7.19, -1.46, sy(15.84), 7.28, -3.06, sy(15.40), 7.20, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.54, sy(17.74), 7.19, 4.18, sy(18.28), 7.10, 3.06, sy(15.40), 7.20, 1.46, sy(15.84), 7.28, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-2.38, sy(16.34), 7.24, 2.38, sy(16.34), 7.24, 1.26, sy(14.96), 7.32, -1.26, sy(14.96), 7.32, skinLight, FaceLayer.SmallDetail);
+
+            // Боковой профиль лица: заполняем стык головы и лица, чтобы сбоку лицо не выглядело отдельно летящим.
+            AddClientQuadLocal(-6.30, sy(25.4), 3.10, -5.00, sy(24.9), 4.78, -4.10, sy(20.5), 5.98, -6.15, sy(20.9), 3.95, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.00, sy(24.9), 4.78, 6.30, sy(25.4), 3.10, 6.15, sy(20.9), 3.95, 4.10, sy(20.5), 5.98, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.10, sy(21.0), 3.95, -4.15, sy(20.7), 5.98, -3.15, sy(16.95), 6.32, -5.55, sy(17.10), 4.10, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.15, sy(20.7), 5.98, 6.10, sy(21.0), 3.95, 5.55, sy(17.10), 4.10, 3.15, sy(16.95), 6.32, skin, FaceLayer.SmallDetail);
+
+            // Усиленное боковое крепление лица к объёму головы:
+            // при повороте вбок эти skin-переходы соединяют переднюю маску лица
+            // с боковой частью головы, чтобы лицо не выглядело отдельно съехавшей плоскостью.
+            AddClientQuadLocal(-6.25, sy(28.8), 1.8, -5.05, sy(28.5), 6.15, -4.95, sy(24.2), 6.55, -6.35, sy(24.0), 1.55, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.05, sy(28.5), 6.15, 6.25, sy(28.8), 1.8, 6.35, sy(24.0), 1.55, 4.95, sy(24.2), 6.55, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.35, sy(24.2), 1.55, -4.95, sy(24.2), 6.55, -4.35, sy(20.3), 6.70, -6.25, sy(20.0), 1.35, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.95, sy(24.2), 6.55, 6.35, sy(24.2), 1.55, 6.25, sy(20.0), 1.35, 4.35, sy(20.3), 6.70, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.25, sy(20.0), 1.35, -4.35, sy(20.3), 6.70, -3.55, sy(16.3), 6.55, -5.75, sy(16.0), 1.20, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.35, sy(20.3), 6.70, 6.25, sy(20.0), 1.35, 5.75, sy(16.0), 1.20, 3.55, sy(16.3), 6.55, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.10, sy(31.0), 1.6, -5.00, sy(30.8), 5.85, -5.05, sy(27.4), 6.30, -6.25, sy(27.6), 1.55, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.00, sy(30.8), 5.85, 6.10, sy(31.0), 1.6, 6.25, sy(27.6), 1.55, 5.05, sy(27.4), 6.30, skin, FaceLayer.SmallDetail);
+
+            // Боковые объёмные вставки закрывают щель между лицом и волосами/затылком
+            // в профильном ракурсе, но оставляем их уже и глубже, чтобы спереди не было квадратной маски.
+            AddClientBlockLocal(-5.40, sy(19.0), 0.9, -4.82, sy(27.8), 5.72, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(4.82, sy(19.0), 0.9, 5.40, sy(27.8), 5.72, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-5.02, sy(17.2), 1.0, -4.10, sy(20.2), 5.98, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(4.10, sy(17.2), 1.0, 5.02, sy(20.2), 5.98, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-5.70, sy(27.0), 1.1, -5.00, sy(31.0), 5.55, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(5.00, sy(27.0), 1.1, 5.70, sy(31.0), 5.55, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.10, sy(24.9), 6.02, -4.45, sy(24.2), 5.82, -4.20, sy(19.6), 5.98, -4.95, sy(19.1), 6.10, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.45, sy(24.2), 5.82, 5.10, sy(24.9), 6.02, 4.95, sy(19.1), 6.10, 4.20, sy(19.6), 5.98, skin, FaceLayer.SmallDetail);
+
+            // Тёмная масса волос остаётся позади соединителя и маскирует задний зазор.
+            AddClientBlockLocal(-8.05, sy(16.0), 0.2, -6.05, sy(31.2), 4.0, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(6.05, sy(16.0), 0.2, 8.05, sy(31.2), 4.0, hair, FaceLayer.SmallDetail);
+
+            // Дополнительная прокладка между лицом и объёмом головы: помогает держать лицо
+            // прикреплённым к черепу даже при отдалении и боковом ракурсе.
+            AddClientBlockLocal(-5.62, sy(18.4), 1.2, -4.02, sy(31.2), 6.45, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(4.02, sy(18.4), 1.2, 5.62, sy(31.2), 6.45, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.60, sy(29.6), 6.32, -4.50, sy(29.2), 6.58, -4.10, sy(24.0), 6.72, -5.45, sy(24.1), 6.44, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.50, sy(29.2), 6.58, 5.60, sy(29.6), 6.32, 5.45, sy(24.1), 6.44, 4.10, sy(24.0), 6.72, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.42, sy(22.8), 6.44, -4.08, sy(22.8), 6.72, -3.62, sy(18.0), 6.70, -5.20, sy(18.0), 6.36, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(4.08, sy(22.8), 6.72, 5.42, sy(22.8), 6.44, 5.20, sy(18.0), 6.36, 3.62, sy(18.0), 6.70, skin, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-6.65, sy(16.0), 0.8, -5.85, sy(31.4), 5.25, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(5.85, sy(16.0), 0.8, 6.65, sy(31.4), 5.25, hair, FaceLayer.SmallDetail);
+
+            // Выравниваем тон нижней части лица, чтобы он совпадал с основным тоном кожи
+            // и не выглядел отдельно более тёмным или более светлым.
+            AddClientQuadLocal(-4.10, sy(21.10), 7.30, 4.10, sy(21.10), 7.30, 3.08, sy(18.74), 7.36, -3.08, sy(18.74), 7.36, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-3.08, sy(18.92), 7.34, 3.08, sy(18.92), 7.34, 2.02, sy(16.58), 7.40, -2.02, sy(16.58), 7.40, skin, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.84, sy(17.02), 7.38, 1.84, sy(17.02), 7.38, 1.10, sy(15.56), 7.43, -1.10, sy(15.56), 7.43, skinLight, FaceLayer.SmallDetail);
+
+            // Повторно выводим губы поверх слоёв скругления лица,
+            // чтобы они не терялись в skin-текстурах и выглядели чуть выразительнее.
+            AddClientQuadLocal(-2.08, sy(19.92), 7.44, 2.08, sy(19.92), 7.44, 1.56, sy(19.28), 7.47, -1.56, sy(19.28), 7.47, lipDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.34, sy(19.68), 7.48, -0.16, sy(19.68), 7.48, -0.38, sy(19.20), 7.50, -1.02, sy(19.20), 7.50, lipLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(0.16, sy(19.68), 7.48, 1.34, sy(19.68), 7.48, 1.02, sy(19.20), 7.50, 0.38, sy(19.20), 7.50, lipLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.28, sy(20.06), 7.50, 0.28, sy(20.06), 7.50, 0.12, sy(19.58), 7.52, -0.12, sy(19.58), 7.52, lipDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.48, sy(18.98), 7.51, 1.48, sy(18.98), 7.51, 1.02, sy(18.30), 7.54, -1.02, sy(18.30), 7.54, lip, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-0.90, sy(18.74), 7.54, 0.90, sy(18.74), 7.54, 0.44, sy(18.44), 7.56, -0.44, sy(18.44), 7.56, lipLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-1.72, sy(19.58), 7.46, 1.72, sy(19.58), 7.46, 1.22, sy(19.12), 7.49, -1.22, sy(19.12), 7.49, Color.FromArgb(204, 128, 142), FaceLayer.SmallDetail);
+
+            // Больше волос по бокам, сверху и возле лица.
+            AddClientBlockLocal(-8.95, sy(31.8), -4.2, -6.45, sy(21.0), 0.9, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(6.45, sy(31.8), -4.2, 8.95, sy(21.0), 0.9, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-8.15, sy(33.0), -1.2, -6.35, sy(24.2), 2.2, hairLight, FaceLayer.SmallDetail);
+            AddClientBlockLocal(6.35, sy(33.0), -1.2, 8.15, sy(24.2), 2.2, hairLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-7.55, sy(36.2), 0.2, -5.55, sy(36.2), 1.8, -6.05, sy(31.2), 4.0, -7.85, sy(31.0), 2.6, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(5.55, sy(36.2), 1.8, 7.55, sy(36.2), 0.2, 7.85, sy(31.0), 2.6, 6.05, sy(31.2), 4.0, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-8.45, sy(30.0), 1.20, -6.95, sy(30.0), 1.80, -6.80, sy(23.6), 1.55, -8.05, sy(23.3), 0.95, hair, FaceLayer.SmallDetail);
+            AddClientQuadLocal(6.95, sy(30.0), 1.80, 8.45, sy(30.0), 1.20, 8.05, sy(23.3), 0.95, 6.80, sy(23.6), 1.55, hair, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-5.90, sy(33.2), 6.65, -2.60, sy(33.2), 6.92, -2.95, sy(30.2), 7.00, -6.15, sy(30.2), 6.74, hairLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(2.60, sy(33.2), 6.92, 5.90, sy(33.2), 6.65, 6.15, sy(30.2), 6.74, 2.95, sy(30.2), 7.00, hairLight, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-7.45, sy(18.0), 0.65, -6.15, sy(18.0), 1.05, -6.35, sy(5.4), 0.30, -7.55, sy(5.6), -0.10, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(6.15, sy(18.0), 1.05, 7.45, sy(18.0), 0.65, 7.55, sy(5.6), -0.10, 6.35, sy(5.4), 0.30, hairDark, FaceLayer.SmallDetail);
 
             ApplyClientTransform();
         }
@@ -2325,53 +3107,60 @@ namespace игра_для_проги.Controller
                 double animZ = 0;
 
                 bool leftSide = localX < 0;
-                double sideSign = leftSide ? -1.0 : 1.0;
+                bool isHeadRegion = localY >= -24.0;
+                bool isNeckRegion = localY >= -30.0 && localY < -24.0;
+                // Весь объём головы (включая подбородок, щёки, скулы и все волосы у головы)
+                // полностью исключён из деформации при ходьбе.
 
-                // Ноги двигаются во время ходьбы.
-                if (localY <= 6)
+                // Голова и лицо не деформируются при ходьбе: только двигаются как цельная форма.
+                if (!isHeadRegion)
                 {
-                    double legWeight = localY <= -58 ? 1.0 : localY <= -30 ? 0.7 : 0.35;
-                    double legPhase = leftSide ? 0 : Math.PI;
-
-                    if (_clientWalkingNow)
+                    // Ноги двигаются во время ходьбы.
+                    if (localY <= 6)
                     {
-                        animZ += Math.Sin(t * 1.7 + legPhase) * 2.4 * legWeight;
-                        animY += Math.Abs(Math.Cos(t * 1.7 + legPhase)) * 0.85 * legWeight;
+                        double legWeight = localY <= -58 ? 1.0 : localY <= -30 ? 0.7 : 0.35;
+                        double legPhase = leftSide ? 0 : Math.PI;
+
+                        if (_clientWalkingNow)
+                        {
+                            animZ += Math.Sin(t * 1.7 + legPhase) * 2.4 * legWeight;
+                            animY += Math.Abs(Math.Cos(t * 1.7 + legPhase)) * 0.85 * legWeight;
+                        }
+                        else
+                        {
+                            animX += Math.Sin(t * 0.55 + legPhase) * 0.10 * legWeight;
+                        }
                     }
-                    else
+
+                    // Руки двигаются в противофазе с ногами.
+                    if (Math.Abs(localX) >= 10 && localY >= -42 && localY <= 12)
                     {
-                        animX += Math.Sin(t * 0.55 + legPhase) * 0.10 * legWeight;
+                        double armWeight = localY <= -18 ? 1.0 : 0.7;
+                        double armPhase = leftSide ? Math.PI : 0;
+
+                        if (_clientWalkingNow)
+                        {
+                            animZ += Math.Sin(t * 1.7 + armPhase) * 1.8 * armWeight;
+                            animX += Math.Sin(t * 1.7 + armPhase) * 0.38 * armWeight;
+                        }
+                        else
+                        {
+                            animZ += Math.Sin(t * 0.6 + armPhase) * 0.18 * armWeight;
+                        }
                     }
-                }
 
-                // Руки двигаются в противофазе с ногами.
-                if (Math.Abs(localX) >= 10 && localY >= -42 && localY <= 12)
-                {
-                    double armWeight = localY <= -18 ? 1.0 : 0.7;
-                    double armPhase = leftSide ? Math.PI : 0;
-
-                    if (_clientWalkingNow)
+                    // Торс слегка покачивается, а шея — совсем немного.
+                    if (localY > 6)
                     {
-                        animZ += Math.Sin(t * 1.7 + armPhase) * 1.8 * armWeight;
-                        animX += Math.Sin(t * 1.7 + armPhase) * 0.38 * armWeight;
+                        double upperWeight = isNeckRegion ? 0.30 : (localY >= 10 ? 1.0 : 0.55);
+                        animX += torsoSway * upperWeight;
                     }
-                    else
+
+                    // Плечи чуть понижаются в момент шага.
+                    if (localY >= 6 && localY <= 12 && _clientWalkingNow)
                     {
-                        animZ += Math.Sin(t * 0.6 + armPhase) * 0.18 * armWeight;
+                        animY -= Math.Abs(Math.Sin(t * 1.7)) * 0.18;
                     }
-                }
-
-                // Торс и голова слегка покачиваются.
-                if (localY > 6)
-                {
-                    double upperWeight = localY >= 10 ? 1.0 : 0.55;
-                    animX += torsoSway * upperWeight;
-                }
-
-                // Плечи чуть понижаются в момент шага.
-                if (localY >= 6 && localY <= 12 && _clientWalkingNow)
-                {
-                    animY -= Math.Abs(Math.Sin(t * 1.7)) * 0.18;
                 }
 
                 double finalLocalX = localX + animX;
@@ -4251,6 +5040,16 @@ namespace игра_для_проги.Controller
             if (z < RoomMinZ + PlayerRadius || z > RoomMaxZ - PlayerRadius)
                 return true;
 
+            if (_tiaBarPassageBlocked)
+            {
+                // Невидимая сплошная стенка на выходе из-за бара в гостевую зону
+                // около левого прохода рядом с зоной сиропов.
+                // Делается через полноценную проверку коллизии, чтобы игрок не мог
+                // "проскочить" сквозь неё ни на кадр.
+                if (CircleIntersectsBox(x, z, PlayerRadius, -270, 330, -92, 392))
+                    return true;
+            }
+
             for (int i = 0; i < _model.Colliders.Count; i++)
             {
                 BoxCollider collider = _model.Colliders[i];
@@ -4260,6 +5059,17 @@ namespace игра_для_проги.Controller
             }
 
             return false;
+        }
+
+        private bool CircleIntersectsBox(double cx, double cz, double radius, double minX, double minZ, double maxX, double maxZ)
+        {
+            double closestX = Clamp(cx, minX, maxX);
+            double closestZ = Clamp(cz, minZ, maxZ);
+
+            double dx = cx - closestX;
+            double dz = cz - closestZ;
+
+            return dx * dx + dz * dz < radius * radius;
         }
 
         private bool CircleIntersectsBox(double cx, double cz, double radius, BoxCollider box)
