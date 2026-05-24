@@ -38,6 +38,26 @@ namespace игра_для_проги.Controller
         private readonly List<int> _takeawayShelfCupPoints = new List<int>();
         private readonly List<double> _takeawayShelfCupBaseY = new List<double>();
 
+        // Предметы для финальной выдачи заказа Тии: сначала стакан на коврике WELCOME,
+        // после реплики Тии вместо него появляется зелёная купюра 300р.
+        private readonly List<int> _tiaServedCupPoints = new List<int>();
+        private readonly List<double> _tiaServedCupBaseY = new List<double>();
+        private readonly List<int> _tiaPaymentBillPoints = new List<int>();
+        private readonly List<double> _tiaPaymentBillBaseY = new List<double>();
+
+        // После выдачи заказа в руке Тии появляется стакан.
+        private readonly List<int> _tiaHoldingCupPoints = new List<int>();
+        private readonly List<double> _tiaHoldingCupLocalX = new List<double>();
+        private readonly List<double> _tiaHoldingCupLocalY = new List<double>();
+        private readonly List<double> _tiaHoldingCupLocalZ = new List<double>();
+
+        // Существующая правая рука Тии (для игрока она слева) сгибается в локте.
+        private readonly List<int> _tiaBentArmPoints = new List<int>();
+        private readonly List<double> _tiaBentArmLocalX = new List<double>();
+        private readonly List<double> _tiaBentArmLocalY = new List<double>();
+        private readonly List<double> _tiaBentArmLocalZ = new List<double>();
+        private bool _tiaHoldingCupVisible;
+
         // 3D-стакан на поддоне кофемашины появляется только во время приготовления кофе.
         private readonly List<int> _coffeeMachineCupPoints = new List<int>();
         private readonly List<double> _coffeeMachineCupBaseY = new List<double>();
@@ -168,6 +188,8 @@ namespace игра_для_проги.Controller
 
             AddSubtleAtmosphereDetails();
             AddCustomerNpc();
+            AddTiaHoldingCupAttachment();
+            SetTiaHoldingCupVisible(false);
             SetClientVisible(false);
 
             AddManualFurnitureColliders();
@@ -246,6 +268,10 @@ namespace игра_для_проги.Controller
             _shelfReturnedCupBaseY.Clear();
             _takeawayShelfCupPoints.Clear();
             _takeawayShelfCupBaseY.Clear();
+            _tiaServedCupPoints.Clear();
+            _tiaServedCupBaseY.Clear();
+            _tiaPaymentBillPoints.Clear();
+            _tiaPaymentBillBaseY.Clear();
             _coffeeMachineCupPoints.Clear();
             _coffeeMachineCupBaseY.Clear();
             _coffeeMachineCupCoffeePoints.Clear();
@@ -400,7 +426,54 @@ namespace игра_для_проги.Controller
         private void AddReferenceStyleSurfaceFinish()
         {
             AddPlainOldWallWear();
+            AddMorningWindowLightOnFloor();
             AddFineDustOnFloor();
+        }
+
+        private void AddMorningWindowLightOnFloor()
+        {
+            // Утренний свет от окна теперь является частью 3D-сцены, а не экранной
+            // накладкой Form1. Поэтому мебель слоя Furniture, включая барную стойку,
+            // рисуется поверх этого света и закрывает его как непрозрачный объект.
+            double y = -100.735;
+
+            Color warmWide = Color.FromArgb(34, 255, 231, 166);
+            Color warmCore = Color.FromArgb(52, 255, 238, 184);
+            Color warmSoft = Color.FromArgb(24, 255, 221, 146);
+
+            // Основное пятно на полу перед стойкой: оно заканчивается до z=372,
+            // то есть перед баром, а не за ним.
+            AddQuad(
+                -286, y, 252,
+                -286, y, 324,
+                -68, y, 366,
+                -116, y, 318,
+                "no_outline",
+                warmWide,
+                FaceLayer.Floor
+            );
+
+            // Более яркая сердцевина луча.
+            AddQuad(
+                -284, y + 0.004, 276,
+                -284, y + 0.004, 302,
+                -112, y + 0.004, 350,
+                -138, y + 0.004, 326,
+                "no_outline",
+                warmCore,
+                FaceLayer.Floor
+            );
+
+            // Мягкое боковое рассеивание рядом с окном.
+            AddQuad(
+                -286, y + 0.002, 306,
+                -286, y + 0.002, 344,
+                -172, y + 0.002, 360,
+                -206, y + 0.002, 324,
+                "no_outline",
+                warmSoft,
+                FaceLayer.Floor
+            );
         }
 
         private void AddPlainOldWallWear()
@@ -820,6 +893,8 @@ namespace игра_для_проги.Controller
 
             // Коврик WELCOME на левом пустом блоке бара
             AddWelcomeMatOnLeftBarBlock();
+            AddTiaOrderExchangeProps();
+            SetTiaOrderExchangeVisible(false, false);
 
             AddPendantLamp(20, 420);
         }
@@ -1130,50 +1205,35 @@ namespace игра_для_проги.Controller
             );
             AddPointRangeToTransformGroup(bagStart, _model.Points.Count, _coffeeRefillBagPoints, _coffeeRefillBagBaseX, _coffeeRefillBagBaseY, _coffeeRefillBagBaseZ);
 
-            // Создаём много групп зёрен около отверстия мешка — дальше они будут реально сыпаться вниз.
-            AddCoffeeBeanCluster(255.8, 26.0, 501.2);
-            AddCoffeeBeanCluster(255.4, 25.5, 500.9);
-            AddCoffeeBeanCluster(256.2, 26.4, 501.0);
-            AddCoffeeBeanCluster(255.9, 25.7, 500.6);
-            AddCoffeeBeanCluster(255.1, 25.9, 500.8);
-            AddCoffeeBeanCluster(256.5, 26.1, 501.1);
-            AddCoffeeBeanCluster(255.6, 26.6, 500.7);
-            AddCoffeeBeanCluster(256.0, 25.2, 501.3);
-            AddCoffeeBeanCluster(255.0, 26.3, 500.5);
-            AddCoffeeBeanCluster(256.4, 25.6, 500.9);
-            AddCoffeeBeanCluster(255.7, 26.0, 500.4);
-            AddCoffeeBeanCluster(256.1, 25.3, 500.8);
-            AddCoffeeBeanCluster(255.3, 26.5, 501.2);
-            AddCoffeeBeanCluster(256.3, 26.2, 500.6);
-            AddCoffeeBeanCluster(255.5, 25.4, 501.0);
-            AddCoffeeBeanCluster(255.9, 26.1, 500.9);
-
-            // Дополнительные группы для более обильного и широкого потока зёрен.
-            AddCoffeeBeanCluster(255.2, 26.8, 500.2);
-            AddCoffeeBeanCluster(256.6, 25.8, 501.4);
-            AddCoffeeBeanCluster(255.0, 25.7, 500.1);
-            AddCoffeeBeanCluster(256.8, 26.6, 501.3);
-            AddCoffeeBeanCluster(255.4, 26.9, 500.7);
-            AddCoffeeBeanCluster(256.0, 25.1, 500.2);
-            AddCoffeeBeanCluster(255.6, 27.0, 501.5);
-            AddCoffeeBeanCluster(256.4, 25.0, 500.4);
-            AddCoffeeBeanCluster(255.1, 26.4, 501.4);
-            AddCoffeeBeanCluster(256.7, 26.0, 500.3);
-            AddCoffeeBeanCluster(255.8, 26.7, 501.6);
-            AddCoffeeBeanCluster(256.2, 25.2, 500.0);
+            // ВРЕМЕННО: очень большой запас крупных зёрен для отладки видимости потока.
+            // Зёрна создаются заранее, а во время анимации выносятся в широкую внешнюю полосу
+            // перед мешком, чтобы они не прятались внутри него или за кофемашиной.
+            for (int xi = 0; xi < 8; xi++)
+            {
+                for (int zi = 0; zi < 5; zi++)
+                {
+                    for (int yi = 0; yi < 3; yi++)
+                    {
+                        double bx = 250.0 + xi * 0.75 + (zi % 2) * 0.22;
+                        double by = 25.0 + yi * 1.10 + (xi % 2) * 0.12;
+                        double bz = 488.0 + zi * 0.76 + yi * 0.10;
+                        AddCoffeeBeanCluster(bx, by, bz);
+                    }
+                }
+            }
         }
 
         private void AddCoffeeBeanCluster(double x, double y, double z)
         {
             int start = _model.Points.Count;
-            Color bean = Color.FromArgb(98, 58, 32);
-            Color beanMid = Color.FromArgb(122, 76, 42);
-            Color beanLight = Color.FromArgb(144, 96, 54);
+            Color bean = Color.FromArgb(120, 72, 40);
+            Color beanMid = Color.FromArgb(156, 98, 56);
+            Color beanLight = Color.FromArgb(194, 134, 82);
 
-            // Зёрна делаем крупнее и контрастнее, чтобы поток был заметен из 1-го лица.
-            AddBlock(x - 0.54, y, z - 0.28, x + 0.54, y + 0.78, z + 0.28, null, bean, FaceLayer.SmallDetail);
-            AddBlock(x - 0.24, y + 0.80, z - 0.16, x + 0.24, y + 1.26, z + 0.16, null, beanMid, FaceLayer.SmallDetail);
-            AddBlock(x - 0.12, y + 1.28, z - 0.10, x + 0.12, y + 1.54, z + 0.10, null, beanLight, FaceLayer.SmallDetail);
+            // ВРЕМЕННО крупный и контрастный кластер: нужен не финальный реализм, а уверенная видимость.
+            AddBlock(x - 1.05, y, z - 0.62, x + 1.05, y + 1.25, z + 0.62, null, bean, FaceLayer.SmallDetail);
+            AddBlock(x - 0.48, y + 1.10, z - 0.34, x + 0.48, y + 1.92, z + 0.34, null, beanMid, FaceLayer.SmallDetail);
+            AddBlock(x - 0.24, y + 1.95, z - 0.20, x + 0.24, y + 2.35, z + 0.20, null, beanLight, FaceLayer.SmallDetail);
             AddPointRangeToTransformGroup(start, _model.Points.Count, _coffeeRefillBeansPoints, _coffeeRefillBeansBaseX, _coffeeRefillBeansBaseY, _coffeeRefillBeansBaseZ);
         }
 
@@ -1405,6 +1465,101 @@ namespace игра_для_проги.Controller
     textMain,
     textOutline
 );
+        }
+
+        private void AddTiaOrderExchangeProps()
+        {
+            // Стоит на коврике WELCOME на верхней плоскости барной стойки, рядом с Тией.
+            // Координаты коврика: примерно X -92..20, Z 389..441, Y -34.72.
+            double cupX = 6.0;
+            double cupY = -33.95;
+            double cupZ = 414.0;
+
+            int cupStart = _model.Points.Count;
+            AddPaperCup(cupX, cupY, cupZ, Color.FromArgb(144, 132, 118));
+
+            // Внутри стакана видно светло-малиновую поверхность напитка.
+            Color raspberryFill = Color.FromArgb(231, 188, 206);
+            Color raspberryFillDark = Color.FromArgb(214, 154, 178);
+            AddBlock(cupX - 2.25, cupY + 4.85, cupZ - 1.45, cupX + 2.25, cupY + 6.00, cupZ + 1.45,
+                null, raspberryFillDark, FaceLayer.SmallDetail);
+            AddBlock(cupX - 2.00, cupY + 6.02, cupZ - 1.30, cupX + 2.00, cupY + 6.16, cupZ + 1.30,
+                null, raspberryFill, FaceLayer.SmallDetail);
+
+            // Непрозрачная белая крышка поверх стакана.
+            Color lidWhite = Color.FromArgb(255, 255, 255);
+            Color lidShadow = Color.FromArgb(228, 228, 222);
+            AddBlock(cupX - 4.2, cupY + 6.35, cupZ - 3.0, cupX + 4.2, cupY + 7.10, cupZ + 3.0,
+                null, lidWhite, FaceLayer.SmallDetail);
+            AddBlock(cupX - 2.3, cupY + 7.10, cupZ - 1.55, cupX + 2.3, cupY + 7.70, cupZ + 1.55,
+                null, lidWhite, FaceLayer.SmallDetail);
+            AddBlock(cupX - 3.7, cupY + 6.25, cupZ - 2.65, cupX + 3.7, cupY + 6.42, cupZ + 2.65,
+                null, lidShadow, FaceLayer.SmallDetail);
+
+            AddPointRangeToGroup(cupStart, _model.Points.Count, _tiaServedCupPoints, _tiaServedCupBaseY);
+
+            int billStart = _model.Points.Count;
+
+            // Купюра стала примерно в 5 раз меньше прежней большой плашки:
+            // прежний размер был около 28x22, теперь около 6x4.4.
+            double billCenterX = 5.8;
+            double billCenterZ = 414.0;
+            double billW = 6.0;
+            double billD = 4.4;
+            double billY = -34.22;
+            double billX1 = billCenterX - billW * 0.5;
+            double billX2 = billCenterX + billW * 0.5;
+            double billZ1 = billCenterZ - billD * 0.5;
+            double billZ2 = billCenterZ + billD * 0.5;
+
+            Color billGreen = Color.FromArgb(48, 138, 72);
+            Color billLight = Color.FromArgb(118, 208, 124);
+            Color billDark = Color.FromArgb(24, 96, 46);
+            Color billInk = Color.FromArgb(236, 250, 222);
+
+            AddBlock(billX1, billY, billZ1, billX2, billY + 0.12, billZ2, null, billGreen, FaceLayer.SmallDetail);
+            AddBlock(billX1 + 0.25, billY + 0.13, billZ1 + 0.25, billX2 - 0.25, billY + 0.20, billZ2 - 0.25, null, billLight, FaceLayer.SmallDetail);
+            AddBlock(billX1 + 0.55, billY + 0.21, billZ1 + 0.55, billX1 + 1.25, billY + 0.30, billZ1 + 1.05, null, billDark, FaceLayer.SmallDetail);
+            AddBlock(billX2 - 1.25, billY + 0.21, billZ2 - 1.05, billX2 - 0.55, billY + 0.30, billZ2 - 0.55, null, billDark, FaceLayer.SmallDetail);
+
+            // Надпись "300р" на маленькой купюре.
+            // Пишем её простыми светлыми штрихами, чтобы читалась как номинал оплаты.
+            double textY = billY + 0.34;
+            double baseX = billX1 + 1.15;
+            double baseZ = billZ1 + 1.00;
+            double stroke = 0.18;
+            double digitH = 2.05;
+            double digitW = 0.72;
+            double gap = 0.30;
+
+            // 3
+            AddBlock(baseX, textY, baseZ + digitH - stroke, baseX + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(baseX, textY, baseZ + digitH * 0.5 - stroke * 0.5, baseX + digitW, textY + 0.08, baseZ + digitH * 0.5 + stroke * 0.5, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(baseX, textY, baseZ, baseX + digitW, textY + 0.08, baseZ + stroke, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(baseX + digitW - stroke, textY, baseZ, baseX + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+
+            // 0
+            double x0 = baseX + digitW + gap;
+            AddBlock(x0, textY, baseZ, x0 + stroke, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x0 + digitW - stroke, textY, baseZ, x0 + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x0, textY, baseZ + digitH - stroke, x0 + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x0, textY, baseZ, x0 + digitW, textY + 0.08, baseZ + stroke, null, billInk, FaceLayer.SmallDetail);
+
+            // 0
+            double x1 = x0 + digitW + gap;
+            AddBlock(x1, textY, baseZ, x1 + stroke, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x1 + digitW - stroke, textY, baseZ, x1 + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x1, textY, baseZ + digitH - stroke, x1 + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(x1, textY, baseZ, x1 + digitW, textY + 0.08, baseZ + stroke, null, billInk, FaceLayer.SmallDetail);
+
+            // р
+            double xr = x1 + digitW + gap;
+            AddBlock(xr, textY, baseZ, xr + stroke, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(xr, textY, baseZ + digitH - stroke, xr + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(xr + digitW - stroke, textY, baseZ + digitH * 0.48, xr + digitW, textY + 0.08, baseZ + digitH, null, billInk, FaceLayer.SmallDetail);
+            AddBlock(xr, textY, baseZ + digitH * 0.48 - stroke * 0.5, xr + digitW, textY + 0.08, baseZ + digitH * 0.48 + stroke * 0.5, null, billInk, FaceLayer.SmallDetail);
+
+            AddPointRangeToGroup(billStart, _model.Points.Count, _tiaPaymentBillPoints, _tiaPaymentBillBaseY);
         }
 
         private void AddTablesAndChairs()
@@ -2200,15 +2355,17 @@ namespace игра_для_проги.Controller
         {
             double hiddenOffset = visible ? 0.0 : -10000.0;
             double clamped = Math.Max(0, Math.Min(1, progress));
-            double bagPulse = Math.Sin(clamped * Math.PI);
 
-            // Сохраняем нужную параллельность широкой грани мешка.
-            // Положение мешка в пространстве оставляем тем же.
-            // Меняем только сторону широкой грани: теперь картинка с зерном смотрит к игроку.
-            // Для этого разворачиваем мешок вокруг вертикальной оси, сохраняя верх сверху,
-            // низ снизу и не меняя остальную геометрию анимации.
-            double yaw = -90.0 * Math.PI / 180.0;
-            double rollLeft = 28.0 * Math.PI / 180.0; // ещё более сильный наклон мешка влево относительно вида от 1-го лица
+            // Делаем ОГРОМНЫЙ, максимально заметный поток зёрен.
+            // Мешок трясётся, а масса маленьких зёрен высыпается СЛЕВА от 1-го лица
+            // и падает до верхней крышки кофемашины, где зёрна исчезают и появляются заново сверху.
+            double shakeFast = Math.Sin(clamped * Math.PI * 8.5);
+            double shakeSlow = Math.Sin(clamped * Math.PI * 4.0 + 0.55);
+            double shakeTiny = Math.Sin(clamped * Math.PI * 14.0 + 1.1);
+            double openPulse = 1.00 + 0.32 * Math.Abs(Math.Sin(clamped * Math.PI * 6.0));
+
+            double yaw = -90.0 * Math.PI / 180.0; // этикетка с зерном к игроку
+            double rollLeft = (35.0 + 3.4 * shakeFast) * Math.PI / 180.0;
             double cosYaw = Math.Cos(yaw);
             double sinYaw = Math.Sin(yaw);
             double cosRollLeft = Math.Cos(rollLeft);
@@ -2217,9 +2374,36 @@ namespace игра_для_проги.Controller
             const double bagBaseCenterX = 251.0;
             const double bagBaseCenterY = 18.1;
             const double bagBaseCenterZ = 496.0;
-            const double bagTargetCenterX = 265.2;
-            const double bagTargetCenterY = 18.8;
-            const double bagTargetCenterZ = 497.0;
+
+            double bagTargetCenterX = 264.9 + 0.18 * shakeFast;
+            double bagTargetCenterY = 20.8 + 0.16 * Math.Abs(shakeSlow) + 0.08 * shakeTiny;
+            double bagTargetCenterZ = 496.9 + 0.16 * shakeSlow;
+
+            void TransformBagPoint(double localX, double localY, double localZ, out double worldX, out double worldY, out double worldZ)
+            {
+                if (localY > 8.0)
+                {
+                    localY += 0.36 * openPulse;
+                    if (localZ > 1.0)
+                    {
+                        localZ += 2.25 * openPulse;
+                        localY += 0.20 * openPulse;
+                    }
+                    else if (localZ < -1.0)
+                    {
+                        localZ -= 0.45 * openPulse;
+                    }
+                }
+
+                double x1 = localX * cosYaw + localZ * sinYaw;
+                double z1 = -localX * sinYaw + localZ * cosYaw;
+                double y1 = localY * cosRollLeft - z1 * sinRollLeft;
+                double z2 = localY * sinRollLeft + z1 * cosRollLeft;
+
+                worldX = bagTargetCenterX + x1;
+                worldY = bagTargetCenterY + y1;
+                worldZ = bagTargetCenterZ + z2;
+            }
 
             for (int i = 0; i < _coffeeRefillBagPoints.Count; i++)
             {
@@ -2230,65 +2414,103 @@ namespace игра_для_проги.Controller
                 double localX = _coffeeRefillBagBaseX[i] - bagBaseCenterX;
                 double localY = _coffeeRefillBagBaseY[i] - bagBaseCenterY;
                 double localZ = _coffeeRefillBagBaseZ[i] - bagBaseCenterZ;
+                TransformBagPoint(localX, localY, localZ, out double worldX, out double worldY, out double worldZ);
 
-                // Разворот по кругу: верх остаётся верхом, низ остаётся низом.
-                double x1 = localX * cosYaw + localZ * sinYaw;
-                double z1 = -localX * sinYaw + localZ * cosYaw;
-
-                // Добавляем только небольшой завал влево в плоскости широкой грани,
-                // не меняя параллельность грани стене и не отворачивая картинку с зерном.
-                double y1 = localY * cosRollLeft - z1 * sinRollLeft;
-                double z2 = localY * sinRollLeft + z1 * cosRollLeft;
-
-                _model.Points[index].X = bagTargetCenterX + x1 + hiddenOffset - 0.08 * bagPulse;
-                _model.Points[index].Y = bagTargetCenterY + y1 + hiddenOffset + 0.16 * bagPulse;
-                _model.Points[index].Z = bagTargetCenterZ + z2 + hiddenOffset - 0.03 * bagPulse;
+                _model.Points[index].X = worldX + hiddenOffset;
+                _model.Points[index].Y = worldY + hiddenOffset;
+                _model.Points[index].Z = worldZ + hiddenOffset;
             }
 
-            // Поток зёрен идёт из верхнего выпирающего края мешка к кофемашине.
+            // Источник потока поставлен прямо в место кончика красной стрелки на скрине.
+            // Предыдущая привязка к углу всё ещё давала старт слишком правее/выше.
+            // Поэтому здесь задаём отдельную контрольную точку у края мешка:
+            // Условное "лево" теперь считаем как сторону стены с настенным меню.
+            // Поэтому смещаем поток левее по Z примерно на 15 координат и слегка поднимаем по Y.
+            double bagShakeX = 0.10 * shakeFast;
+            double bagShakeY = 0.10 * Math.Abs(shakeSlow);
+            double bagShakeZ = 0.08 * shakeSlow;
+
+            double arrowTipX = 268.8 + bagShakeX;
+            double arrowTipY = 22.3 + bagShakeY;
+            double arrowTipZ = 512.2 + bagShakeZ;
+
+            // Старт делаем компактным, чтобы верх потока был именно точкой выхода из мешка,
+            // а не отдельной широкой колонной сбоку.
+            double[] sourceXs = { arrowTipX - 0.9, arrowTipX - 0.6, arrowTipX - 0.3, arrowTipX, arrowTipX + 0.3, arrowTipX + 0.6, arrowTipX + 0.9, arrowTipX + 1.2 };
+            double[] sourceYs = { arrowTipY - 0.5, arrowTipY - 0.2, arrowTipY, arrowTipY + 0.2, arrowTipY + 0.3, arrowTipY + 0.1, arrowTipY - 0.2, arrowTipY - 0.4 };
+            double[] sourceZs = { arrowTipZ - 0.5, arrowTipZ - 0.3, arrowTipZ - 0.1, arrowTipZ, arrowTipZ + 0.1, arrowTipZ + 0.3, arrowTipZ + 0.5, arrowTipZ + 0.7 };
+
+            // Низ потока идёт от этой точки вниз и чуть вправо к отсеку кофемашины.
+            double[] targetXs = { arrowTipX + 4.0, arrowTipX + 5.2, arrowTipX + 6.4, arrowTipX + 7.6, arrowTipX + 8.8, arrowTipX + 10.0, arrowTipX + 11.2, arrowTipX + 12.4, arrowTipX + 13.6, arrowTipX + 14.8 };
+            double[] targetYs = { 5.9, 5.8, 5.7, 5.6, 5.7, 5.8, 5.7, 5.6, 5.7, 5.8 };
+            double[] targetZs = { arrowTipZ - 0.4, arrowTipZ, arrowTipZ + 0.4, arrowTipZ + 0.8, arrowTipZ + 1.2, arrowTipZ + 1.6, arrowTipZ + 2.0, arrowTipZ + 2.4, arrowTipZ + 2.8, arrowTipZ + 3.2 };
+
             int pointsPerCluster = 24;
             int beanGroupCount = Math.Max(1, _coffeeRefillBeansPoints.Count / pointsPerCluster);
-            for (int i = 0; i < _coffeeRefillBeansPoints.Count; i++)
-            {
-                int index = _coffeeRefillBeansPoints[i];
-                if (index < 0 || index >= _model.Points.Count)
-                    continue;
 
-                int clusterIndex = Math.Min(beanGroupCount - 1, i / pointsPerCluster);
-                double cycle = (clamped * 5.9 + clusterIndex * 0.08) % 1.0;
-                if (cycle > 0.995)
+            for (int clusterIndex = 0; clusterIndex < beanGroupCount; clusterIndex++)
+            {
+                double fall = (clamped * 18.0 + clusterIndex * 0.037) % 1.0;
+
+                int sourceLane = clusterIndex % sourceXs.Length;
+                double sourceX = sourceXs[sourceLane] + bagShakeX;
+                double sourceY = sourceYs[sourceLane] + bagShakeY;
+                double sourceZ = sourceZs[sourceLane] + bagShakeZ;
+
+                int targetLane = clusterIndex % targetXs.Length;
+                double targetX = targetXs[targetLane];
+                double targetY = targetYs[targetLane];
+                double targetZ = targetZs[targetLane];
+
+                int columnXIndex = clusterIndex % 10;
+                int columnZIndex = (clusterIndex / 10) % 8;
+                double spread = 0.06 + 2.00 * fall;
+                double sideSpread = (columnXIndex - 4.5) * 0.36 * spread;
+                double depthSpread = (columnZIndex - 3.5) * 0.28 * spread;
+                double wobbleX = Math.Sin((clamped * Math.PI * 12.0) + clusterIndex * 0.39) * 0.22;
+                double wobbleZ = Math.Cos((clamped * Math.PI * 11.4) + clusterIndex * 0.31) * 0.18;
+                double wobbleY = Math.Sin((clamped * Math.PI * 13.0) + clusterIndex * 0.27) * 0.20;
+
+                double lineX = sourceX + (targetX - sourceX) * fall;
+                double lineY = sourceY + (targetY - sourceY) * fall;
+                double lineZ = sourceZ + (targetZ - sourceZ) * fall;
+
+                int clusterStart = clusterIndex * pointsPerCluster;
+                int clusterEnd = Math.Min(clusterStart + pointsPerCluster, _coffeeRefillBeansPoints.Count);
+
+                double minBaseX = double.MaxValue;
+                double maxBaseX = double.MinValue;
+                double minBaseY = double.MaxValue;
+                double minBaseZ = double.MaxValue;
+                double maxBaseZ = double.MinValue;
+
+                for (int j = clusterStart; j < clusterEnd; j++)
                 {
-                    _model.Points[index].X = _coffeeRefillBeansBaseX[i] + hiddenOffset;
-                    _model.Points[index].Y = _coffeeRefillBeansBaseY[i] + hiddenOffset;
-                    _model.Points[index].Z = _coffeeRefillBeansBaseZ[i] + hiddenOffset;
-                    continue;
+                    if (_coffeeRefillBeansBaseX[j] < minBaseX) minBaseX = _coffeeRefillBeansBaseX[j];
+                    if (_coffeeRefillBeansBaseX[j] > maxBaseX) maxBaseX = _coffeeRefillBeansBaseX[j];
+                    if (_coffeeRefillBeansBaseY[j] < minBaseY) minBaseY = _coffeeRefillBeansBaseY[j];
+                    if (_coffeeRefillBeansBaseZ[j] < minBaseZ) minBaseZ = _coffeeRefillBeansBaseZ[j];
+                    if (_coffeeRefillBeansBaseZ[j] > maxBaseZ) maxBaseZ = _coffeeRefillBeansBaseZ[j];
                 }
 
-                double fall = cycle;
-                int columnXIndex = clusterIndex % 6;
-                int columnZIndex = (clusterIndex / 6) % 5;
-                double spreadFall = 0.25 + 0.75 * fall;
-                double sideSpread = (columnXIndex - 2.5) * 0.52 * spreadFall;
-                double depthSpread = (columnZIndex - 2.0) * 0.46 * spreadFall;
-                double wobbleX = Math.Sin((clamped * Math.PI * 8.4) + clusterIndex * 0.55) * 0.10;
-                double wobbleZ = Math.Cos((clamped * Math.PI * 7.8) + clusterIndex * 0.48) * 0.10;
-                double wobbleY = Math.Sin((clamped * Math.PI * 9.3) + clusterIndex * 0.37) * 0.16;
+                double localCenterX = (minBaseX + maxBaseX) * 0.5;
+                double localBottomY = minBaseY;
+                double localCenterZ = (minBaseZ + maxBaseZ) * 0.5;
 
-                // Старт потока: ИМЕННО ближний к игроку верхний левый угол мешка.
-                // У верхней точки разброс минимальный, а ниже поток расширяется,
-                // чтобы было видно, что зёрна высыпаются из одного конкретного края.
-                double sourceX = 259.20;
-                double sourceY = 34.65;
-                double sourceZ = 492.97;
+                for (int j = clusterStart; j < clusterEnd; j++)
+                {
+                    int index = _coffeeRefillBeansPoints[j];
+                    if (index < 0 || index >= _model.Points.Count)
+                        continue;
 
-                // Падение почти вертикально вниз на верхнюю грань кофемашины.
-                double streamDriftX = 0.12 * fall;
-                double streamDriftY = 31.8 * fall;
-                double streamDriftZ = 0.08 * fall;
+                    double localX = _coffeeRefillBeansBaseX[j] - localCenterX;
+                    double localY = _coffeeRefillBeansBaseY[j] - localBottomY;
+                    double localZ = _coffeeRefillBeansBaseZ[j] - localCenterZ;
 
-                _model.Points[index].X = sourceX + sideSpread + streamDriftX + hiddenOffset + wobbleX;
-                _model.Points[index].Y = sourceY - streamDriftY + hiddenOffset + wobbleY;
-                _model.Points[index].Z = sourceZ + depthSpread + streamDriftZ + hiddenOffset + wobbleZ;
+                    _model.Points[index].X = lineX + sideSpread + wobbleX + localX + hiddenOffset;
+                    _model.Points[index].Y = lineY + wobbleY + localY + hiddenOffset;
+                    _model.Points[index].Z = lineZ + depthSpread + wobbleZ + localZ + hiddenOffset;
+                }
             }
 
             _model.NotifyChanged();
@@ -2369,6 +2591,20 @@ namespace игра_для_проги.Controller
         public void SetTakeawayShelfCupVisible(bool visible)
         {
             MovePointGroupByY(_takeawayShelfCupPoints, _takeawayShelfCupBaseY, visible);
+            _model.NotifyChanged();
+        }
+
+        public void SetTiaOrderExchangeVisible(bool cupVisible, bool billVisible)
+        {
+            MovePointGroupByY(_tiaServedCupPoints, _tiaServedCupBaseY, cupVisible);
+            MovePointGroupByY(_tiaPaymentBillPoints, _tiaPaymentBillBaseY, billVisible);
+            _model.NotifyChanged();
+        }
+
+        public void SetTiaHoldingCupVisible(bool visible)
+        {
+            _tiaHoldingCupVisible = visible;
+            ApplyClientTransform();
             _model.NotifyChanged();
         }
 
@@ -2474,8 +2710,8 @@ namespace игра_для_проги.Controller
             Color hair = Color.FromArgb(78, 42, 40);
             Color hairDark = Color.FromArgb(52, 28, 27);
             Color hairLight = Color.FromArgb(103, 61, 57);
-            Color dress = Color.FromArgb(31, 33, 39);
-            Color dressLight = Color.FromArgb(54, 57, 65);
+            Color dress = Color.FromArgb(72, 76, 84);
+            Color dressLight = Color.FromArgb(96, 101, 110);
             Color skirt = Color.FromArgb(64, 68, 78);
             Color skirtDark = Color.FromArgb(42, 45, 54);
             Color tights = Color.FromArgb(76, 76, 84);
@@ -2580,26 +2816,46 @@ namespace игра_для_проги.Controller
 
             // Кожа рук ниже рукава.
             AddClientBlockLocal(-14.5, sy(-6.0), -2.9, -10.0, sy(0.8), 3.6, skinShade, FaceLayer.SmallDetail);
+            int tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(10.0, sy(-6.0), -2.9, 14.5, sy(0.8), 3.6, skinShade, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientBlockLocal(-14.4, sy(-10.0), -3.0, -9.9, sy(-6.0), 3.7, skinDark, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(9.9, sy(-10.0), -3.0, 14.4, sy(-6.0), 3.7, skinDark, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientBlockLocal(-14.1, sy(-22.0), -2.7, -10.3, sy(-10.0), 3.4, skin, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(10.3, sy(-22.0), -2.7, 14.1, sy(-10.0), 3.4, skin, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientBlockLocal(-13.2, sy(-25.6), -2.1, -10.5, sy(-22.0), 2.8, skinShade, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(10.5, sy(-25.6), -2.1, 13.2, sy(-22.0), 2.8, skinShade, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientBlockLocal(-13.6, sy(-29.8), -1.8, -10.0, sy(-25.6), 2.9, skinShade, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(10.0, sy(-29.8), -1.8, 13.6, sy(-25.6), 2.9, skinShade, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             // Сглаживаем руки и добавляем чуть более человеческий объём локтям и предплечьям.
             AddClientQuadLocal(-13.6, sy(-9.4), 2.9, -10.9, sy(-9.4), 2.9, -11.1, sy(-16.4), 3.2, -13.4, sy(-16.4), 3.2, skinLight, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientQuadLocal(10.9, sy(-9.4), 2.9, 13.6, sy(-9.4), 2.9, 13.4, sy(-16.4), 3.2, 11.1, sy(-16.4), 3.2, skinLight, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientQuadLocal(-13.2, sy(-16.2), 3.1, -11.0, sy(-16.2), 3.1, -11.4, sy(-24.8), 2.8, -12.9, sy(-24.8), 2.8, skin, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientQuadLocal(11.0, sy(-16.2), 3.1, 13.2, sy(-16.2), 3.1, 12.9, sy(-24.8), 2.8, 11.4, sy(-24.8), 2.8, skin, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
             AddClientBlockLocal(-13.5, sy(-32.2), 1.0, -12.8, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
             AddClientBlockLocal(-12.6, sy(-32.3), 1.0, -11.9, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
             AddClientBlockLocal(-11.7, sy(-32.2), 1.0, -11.0, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(11.0, sy(-32.2), 1.0, 11.7, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(11.9, sy(-32.3), 1.0, 12.6, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
+            tiaRightForearmSegmentStart = _model.Points.Count;
             AddClientBlockLocal(12.8, sy(-32.2), 1.0, 13.5, sy(-30.0), 2.7, nail, FaceLayer.SmallDetail);
+            RegisterLocalPoints(tiaRightForearmSegmentStart, _model.Points.Count, _tiaBentArmPoints, _tiaBentArmLocalX, _tiaBentArmLocalY, _tiaBentArmLocalZ);
 
             // =====================================================
             // ШЕЯ И ГОЛОВА
@@ -2734,6 +2990,24 @@ namespace игра_для_проги.Controller
             AddClientBlockLocal(-7.6, sy(20.0), -10.5, 7.6, sy(26.8), -4.0, hair, FaceLayer.SmallDetail);
             AddClientBlockLocal(-7.0, sy(11.0), -9.6, 7.0, sy(20.5), -4.4, hair, FaceLayer.SmallDetail);
             AddClientBlockLocal(-6.2, sy(2.0), -8.7, 6.2, sy(11.0), -3.7, hair, FaceLayer.SmallDetail);
+
+            // Усиленный затылок и задние пряди: закрываем заметную залысину сзади.
+            // Делали объём глубже по Z и в несколько слоёв, чтобы волосы не терялись
+            // в соседних текстурах при уходе Тии спиной к игроку.
+            AddClientBlockLocal(-8.1, sy(25.4), -13.6, 8.1, sy(35.4), -5.2, hairDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-7.8, sy(16.8), -13.2, 7.8, sy(26.2), -5.7, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-7.0, sy(8.0), -12.8, 7.0, sy(18.0), -5.8, hair, FaceLayer.SmallDetail);
+            AddClientBlockLocal(-6.2, sy(0.8), -11.6, 6.2, sy(9.2), -5.7, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-7.1, sy(27.2), -5.55, 7.1, sy(27.2), -5.55, 6.4, sy(23.6), -8.95, -6.4, sy(23.6), -8.95, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.8, sy(17.8), -5.85, 6.8, sy(17.8), -5.85, 7.0, sy(13.0), -9.85, -7.0, sy(13.0), -9.85, hair, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-6.0, sy(8.8), -5.95, 6.0, sy(8.8), -5.95, 6.3, sy(4.0), -8.85, -6.3, sy(4.0), -8.85, hairDark, FaceLayer.SmallDetail);
+
+            // Боковые задние секции, чтобы при повороте головы не было просветов между
+            // висками, боковыми волосами и затылком.
+            AddClientBlockLocal(-9.2, sy(13.5), -11.8, -6.8, sy(31.8), -4.9, hairDark, FaceLayer.SmallDetail);
+            AddClientBlockLocal(6.8, sy(13.5), -11.8, 9.2, sy(31.8), -4.9, hairDark, FaceLayer.SmallDetail);
+            AddClientQuadLocal(-8.9, sy(30.8), -4.9, -6.9, sy(30.8), -4.9, -7.2, sy(24.0), -8.3, -9.0, sy(24.0), -8.3, hair, FaceLayer.SmallDetail);
+            AddClientQuadLocal(6.9, sy(30.8), -4.9, 8.9, sy(30.8), -4.9, 9.0, sy(24.0), -8.3, 7.2, sy(24.0), -8.3, hair, FaceLayer.SmallDetail);
 
             // Скругление макушки.
             AddClientBlockLocal(-7.2, sy(32.0), -7.0, 7.2, sy(36.2), 2.8, hairLight, FaceLayer.SmallDetail);
@@ -3002,6 +3276,121 @@ namespace игра_для_проги.Controller
             ApplyClientTransform();
         }
 
+        private void AddTiaHoldingCupAttachment()
+        {
+            Color skin = Color.FromArgb(239, 219, 214);
+            Color skinShade = Color.FromArgb(224, 198, 192);
+            Color skinLight = Color.FromArgb(247, 231, 226);
+            Color dress = Color.FromArgb(88, 92, 100);
+            Color dressLight = Color.FromArgb(118, 124, 132);
+            Color nail = Color.FromArgb(170, 110, 128);
+            Color cupBody = Color.FromArgb(144, 132, 118);
+            Color cupShadow = HorrorColor.DeepWood;
+            Color lidWhite = Color.FromArgb(255, 255, 255);
+            Color lidShadow = Color.FromArgb(228, 228, 222);
+            Color raspberryFill = Color.FromArgb(231, 188, 206);
+            Color raspberryFillDark = Color.FromArgb(214, 154, 178);
+
+            // Рука должна выходить из рукава, а не висеть перед одеждой.
+            // Поэтому верхнюю часть руки уводим глубже к телу и закрываем плечо/верх руки рукавом.
+            AddClientAttachmentBlockLocal(9.6, -21.8, 4.4, 12.6, -10.9, 6.6, skin, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(10.1, -20.8, 4.6, 12.0, -11.8, 6.2, skinLight, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(8.3, -18.2, 6.9, 13.8, -6.8, 9.8, dress, FaceLayer.SmallDetail); // рукав сверху
+            AddClientAttachmentBlockLocal(8.7, -17.2, 7.2, 13.3, -7.6, 9.3, dressLight, FaceLayer.SmallDetail); // свет рукава
+
+            // Локоть и переход к предплечью — тоже чуть глубже, чтобы локоть не жил отдельно.
+            AddClientAttachmentBlockLocal(8.5, -24.0, 5.0, 12.3, -20.8, 7.2, skinShade, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(7.5, -24.8, 5.4, 10.2, -21.8, 7.1, skin, FaceLayer.SmallDetail);
+
+            // Горизонтальное предплечье: начало слегка глубже и с нахлёстом на локоть.
+            AddClientAttachmentBlockLocal(1.8, -24.8, 6.0, 8.9, -21.9, 8.0, skin, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(2.4, -24.3, 6.2, 8.1, -22.4, 7.7, skinLight, FaceLayer.SmallDetail);
+
+            // Горизонтальная кисть — ладонь и пальцы вперёд.
+            AddClientAttachmentBlockLocal(-2.8, -24.7, 6.2, 2.0, -22.0, 8.5, skin, FaceLayer.SmallDetail); // ладонь
+            AddClientAttachmentBlockLocal(-3.5, -24.6, 6.2, -2.8, -24.0, 8.5, skinLight, FaceLayer.SmallDetail); // палец 1
+            AddClientAttachmentBlockLocal(-3.6, -23.9, 6.2, -2.9, -23.3, 8.5, skinLight, FaceLayer.SmallDetail); // палец 2
+            AddClientAttachmentBlockLocal(-3.4, -23.2, 6.2, -2.7, -22.6, 8.5, skinLight, FaceLayer.SmallDetail); // палец 3
+            AddClientAttachmentBlockLocal(-1.0, -24.2, 8.2, 0.6, -22.7, 9.4, skinShade, FaceLayer.SmallDetail); // большой палец сбоку
+            AddClientAttachmentBlockLocal(-3.5, -24.6, 8.4, -2.9, -24.2, 9.0, nail, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(-3.6, -23.9, 8.4, -3.0, -23.5, 9.0, nail, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(-3.4, -23.2, 8.4, -2.8, -22.8, 9.0, nail, FaceLayer.SmallDetail);
+
+            // Стакан остаётся в кисти, чуть перед телом.
+            double cupX = -2.7;
+            double cupY = -25.0;
+            double cupZ = 8.7;
+
+            AddClientAttachmentBlockLocal(cupX - 3.0, cupY, cupZ - 2.0, cupX + 3.0, cupY + 3.0, cupZ + 2.0, cupBody, FaceLayer.Furniture);
+            AddClientAttachmentBlockLocal(cupX - 2.6, cupY + 3.0, cupZ - 1.7, cupX + 2.6, cupY + 5.8, cupZ + 1.7, cupBody, FaceLayer.Furniture);
+            AddClientAttachmentBlockLocal(cupX - 2.15, cupY + 4.90, cupZ - 1.30, cupX + 2.15, cupY + 6.00, cupZ + 1.30, raspberryFillDark, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(cupX - 1.90, cupY + 6.02, cupZ - 1.15, cupX + 1.90, cupY + 6.16, cupZ + 1.15, raspberryFill, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(cupX - 2.7, cupY + 1.8, cupZ - 1.8, cupX + 2.7, cupY + 3.4, cupZ + 1.8, cupShadow, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(cupX - 3.3, cupY + 5.8, cupZ - 2.3, cupX + 3.3, cupY + 6.6, cupZ + 2.3, lidWhite, FaceLayer.Furniture);
+            AddClientAttachmentBlockLocal(cupX - 2.2, cupY + 6.60, cupZ - 1.35, cupX + 2.2, cupY + 7.10, cupZ + 1.35, lidWhite, FaceLayer.SmallDetail);
+            AddClientAttachmentBlockLocal(cupX - 2.8, cupY + 5.65, cupZ - 1.90, cupX + 2.8, cupY + 5.82, cupZ + 1.90, lidShadow, FaceLayer.SmallDetail);
+        }
+
+        private void AddClientAttachmentBlockLocal(
+            double x1,
+            double y1,
+            double z1,
+            double x2,
+            double y2,
+            double z2,
+            Color color,
+            FaceLayer layer)
+        {
+            int startIndex = _model.Points.Count;
+            AddBlock(
+                _clientWorldX + x1,
+                y1,
+                _clientWorldZ + z1,
+                _clientWorldX + x2,
+                y2,
+                _clientWorldZ + z2,
+                "no_outline",
+                color,
+                layer);
+            RegisterLocalPoints(startIndex, _model.Points.Count, _tiaHoldingCupPoints, _tiaHoldingCupLocalX, _tiaHoldingCupLocalY, _tiaHoldingCupLocalZ);
+        }
+
+        private void AddClientAttachmentQuadLocal(
+            double x1,
+            double y1,
+            double z1,
+            double x2,
+            double y2,
+            double z2,
+            double x3,
+            double y3,
+            double z3,
+            double x4,
+            double y4,
+            double z4,
+            Color color,
+            FaceLayer layer)
+        {
+            int startIndex = _model.Points.Count;
+            AddQuad(
+                _clientWorldX + x1,
+                y1,
+                _clientWorldZ + z1,
+                _clientWorldX + x2,
+                y2,
+                _clientWorldZ + z2,
+                _clientWorldX + x3,
+                y3,
+                _clientWorldZ + z3,
+                _clientWorldX + x4,
+                y4,
+                _clientWorldZ + z4,
+                "no_outline",
+                color,
+                layer);
+            RegisterLocalPoints(startIndex, _model.Points.Count, _tiaHoldingCupPoints, _tiaHoldingCupLocalX, _tiaHoldingCupLocalY, _tiaHoldingCupLocalZ);
+        }
+
         private void AddClientBlockLocal(
             double x1,
             double y1,
@@ -3064,14 +3453,57 @@ namespace игра_для_проги.Controller
 
         private void RegisterClientPoints(int startIndex, int endIndex)
         {
+            RegisterLocalPoints(startIndex, endIndex, _clientPoints, _clientLocalX, _clientLocalY, _clientLocalZ);
+        }
+
+        private void RegisterLocalPoints(
+            int startIndex,
+            int endIndex,
+            List<int> points,
+            List<double> localX,
+            List<double> localY,
+            List<double> localZ)
+        {
             for (int i = startIndex; i < endIndex; i++)
             {
                 Point3D point = _model.Points[i];
-                _clientPoints.Add(i);
-                _clientLocalX.Add(point.X - _clientWorldX);
-                _clientLocalY.Add(point.Y);
-                _clientLocalZ.Add(point.Z - _clientWorldZ);
+                points.Add(i);
+                localX.Add(point.X - _clientWorldX);
+                localY.Add(point.Y);
+                localZ.Add(point.Z - _clientWorldZ);
             }
+        }
+
+        private void ApplyAttachmentTransform(
+            List<int> points,
+            List<double> localX,
+            List<double> localY,
+            List<double> localZ,
+            double cos,
+            double sin,
+            double hiddenOffsetY,
+            double globalBob,
+            double torsoSway)
+        {
+            if (points.Count == 0 || points.Count != localX.Count)
+                return;
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                int index = points[i];
+                if (index < 0 || index >= _model.Points.Count)
+                    continue;
+
+                double finalLocalX = localX[i] + torsoSway * 0.9;
+                double finalLocalY = localY[i] + globalBob;
+                double finalLocalZ = localZ[i];
+                Point3D point = _model.Points[index];
+
+                point.X = _clientWorldX + finalLocalX * cos + finalLocalZ * sin;
+                point.Y = finalLocalY + hiddenOffsetY;
+                point.Z = _clientWorldZ - finalLocalX * sin + finalLocalZ * cos;
+            }
+
         }
 
         private void ApplyClientTransform()
@@ -3172,6 +3604,32 @@ namespace игра_для_проги.Controller
                 point.Y = finalLocalY + hiddenOffsetY;
                 point.Z = _clientWorldZ - finalLocalX * sin + finalLocalZ * cos;
             }
+
+            if (_tiaHoldingCupVisible && _tiaBentArmPoints.Count > 0)
+            {
+                // Прячем старое нижнее предплечье/кисть Тии и вместо него показываем
+                // отдельную нормальную согнутую часть руки как attachment перед туловищем.
+                for (int i = 0; i < _tiaBentArmPoints.Count; i++)
+                {
+                    int index = _tiaBentArmPoints[i];
+                    if (index < 0 || index >= _model.Points.Count)
+                        continue;
+
+                    _model.Points[index].Y = -10000.0;
+                }
+            }
+
+            double attachmentHiddenOffsetY = (_clientVisible && _tiaHoldingCupVisible) ? 0.0 : -10000.0;
+            ApplyAttachmentTransform(
+                _tiaHoldingCupPoints,
+                _tiaHoldingCupLocalX,
+                _tiaHoldingCupLocalY,
+                _tiaHoldingCupLocalZ,
+                cos,
+                sin,
+                attachmentHiddenOffsetY,
+                globalBob,
+                torsoSway);
         }
 
         private void AddTeaShelfSign()

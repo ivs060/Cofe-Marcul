@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 using игра_для_проги.Controller;
 using игра_для_проги.Model;
@@ -15,6 +16,8 @@ namespace игра_для_проги
         private SceneModel _model;
         private MainController _controller;
         private HorrorGameController _game;
+        private AudioManager _audio;
+        private bool _musicStarted;
         private SceneView _view = new SceneView();
 
         private bool _isMouseDown = false;
@@ -73,7 +76,8 @@ namespace игра_для_проги
                 _controller.SetCoffeeStainsOnTable2Visible,
                 _controller.SetReturnedShelfCupsVisible,
                 _controller.SetTakeawayShelfCupVisible,
-                _controller.SetTvScreenOn,
+                _controller.SetTiaOrderExchangeVisible,
+                SetTvScreenOnAndStartMusic,
                 _controller.SetCashRecipeScreenVisible,
                 _controller.SetCoffeeMachineCupState,
                 _controller.SetRaspberryPumpPressed,
@@ -81,9 +85,19 @@ namespace игра_для_проги
                 _controller.SetClientTransform,
                 _controller.SetCoffeeBeanFrontBagVisible,
                 _controller.SetCoffeeMachineRefillAnimation,
-                _controller.SetSinkWashAnimation,
-                _controller.SetTiaBarPassageBlocked
+                SetSinkWashAnimationAndSound,
+                _controller.SetTiaHoldingCupVisible,
+                _controller.SetTiaBarPassageBlocked,
+                PlayGameSound,
+                PlayGameSoundFor,
+                StartGameSoundLoop,
+                StopGameSoundLoop
             );
+
+            _audio = new AudioManager();
+            _audio.MusicVolume = 0.35f;
+            _audio.SoundVolume = 0.85f;
+            _musicStarted = false;
 
             // KeyDown уже подключен в Form1.Designer.cs.
             // KeyUp там нет, поэтому подключаем здесь.
@@ -103,6 +117,105 @@ namespace игра_для_проги
         private void Form1_Load(object sender, EventArgs e)
         {
             // Заглушка для дизайнера Visual Studio.
+        }
+
+
+        private void SetSinkWashAnimationAndSound(bool active, double progress)
+        {
+            // Звук мойки жёстко привязан к видимости/активности самой анимации.
+            // Как только анимация выключается, сразу останавливаем washingCups.
+            _controller.SetSinkWashAnimation(active, progress);
+
+            if (!active)
+                StopGameSoundLoop("washingCups");
+        }
+
+        private void SetTvScreenOnAndStartMusic(bool visible)
+        {
+            _controller.SetTvScreenOn(visible);
+
+            if (visible)
+                StartBackgroundMusicOnce();
+        }
+
+        private void StartBackgroundMusicOnce()
+        {
+            if (_musicStarted || _audio == null)
+                return;
+
+            _musicStarted = true;
+            _audio.PlayMusicLoop(Path.Combine(Application.StartupPath, "Assets", "Music", "back.mp3"));
+        }
+
+        private string GetMusicAssetPath(string fileName)
+        {
+            string musicFolder = Path.Combine(Application.StartupPath, "Assets", "Music");
+            string exactPath = Path.Combine(musicFolder, fileName + ".mp3");
+
+            if (File.Exists(exactPath))
+                return exactPath;
+
+            // На всякий случай поддерживаем частые опечатки в названиях файлов.
+            if (fileName == "washingCups")
+            {
+                string cyrillicCPath = Path.Combine(musicFolder, "washingСups.mp3");
+                if (File.Exists(cyrillicCPath))
+                    return cyrillicCPath;
+            }
+
+            if (fileName == "generalInteraction")
+            {
+                string typoPath = Path.Combine(musicFolder, "generalnteraction.mp3");
+                if (File.Exists(typoPath))
+                    return typoPath;
+            }
+
+            if (Directory.Exists(musicFolder))
+            {
+                string expectedName = fileName + ".mp3";
+                string[] files = Directory.GetFiles(musicFolder, "*.mp3");
+
+                for (int i = 0; i < files.Length; i++)
+                {
+                    if (string.Equals(Path.GetFileName(files[i]), expectedName, StringComparison.OrdinalIgnoreCase))
+                        return files[i];
+                }
+            }
+
+            return exactPath;
+        }
+
+        private void PlayGameSound(string fileName)
+        {
+            if (_audio == null)
+                return;
+
+            _audio.PlaySound(GetMusicAssetPath(fileName));
+        }
+
+        private void PlayGameSoundFor(string fileName, double maxSeconds)
+        {
+            if (_audio == null)
+                return;
+
+            _audio.PlaySoundFor(GetMusicAssetPath(fileName), maxSeconds);
+        }
+
+        private void StartGameSoundLoop(string fileName)
+        {
+            if (_audio == null)
+                return;
+
+            float volumeMultiplier = string.Equals(fileName, "Stomp", StringComparison.OrdinalIgnoreCase) ? 0.5f : 1.0f;
+            _audio.StartLoopingSound(fileName, GetMusicAssetPath(fileName), volumeMultiplier);
+        }
+
+        private void StopGameSoundLoop(string fileName)
+        {
+            if (_audio == null)
+                return;
+
+            _audio.StopLoopingSound(fileName);
         }
 
         private void HideGameCursor()
@@ -277,6 +390,14 @@ namespace игра_для_проги
             if (e.KeyCode == Keys.R)
             {
                 _controller.RespawnCamera();
+                return;
+            }
+
+            // Временная debug-кнопка: на русской раскладке клавиша "ъ"\n            // сразу переносит к цели "отдать заказ".
+            if (e.KeyCode == Keys.OemCloseBrackets)
+            {
+                _game.DebugJumpToGiveOrderObjective();
+                Invalidate();
                 return;
             }
 
@@ -479,6 +600,8 @@ namespace игра_для_проги
             if (deltaTime <= 0 || deltaTime > 0.1)
                 deltaTime = 0.033;
 
+            _audio?.KeepLoopsAlive();
+
             // Пока открыты настройки, игровой процесс полностью заморожен:
             // не двигаем камеру, не обновляем игровые таймеры,
             // не двигаем клиентку, не анимируем телевизор.
@@ -539,6 +662,7 @@ namespace игра_для_проги
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            _audio?.Dispose();
             ShowGameCursor();
             base.OnFormClosed(e);
         }
@@ -590,6 +714,7 @@ namespace игра_для_проги
                     g.FillRectangle(brush, 0, 0, ClientSize.Width, ClientSize.Height);
             }
 
+            DrawWindowMorningLight(g);
             DrawBartenderLampLight(g);
 
             if (_game.ScreenFlash)
@@ -654,6 +779,49 @@ namespace игра_для_проги
             }
         }
 
+
+        private void DrawWindowMorningLight(Graphics g)
+        {
+            if (_game == null)
+                return;
+
+            // Утренний свет из левого окна. Рисуем его поверх затемнения,
+            // поэтому он остаётся видимым даже при выключенном свете.
+            int windowAlpha = _game.LightOn ? 72 : 128;
+
+            PointF w0;
+            PointF w1;
+            PointF w2;
+            PointF w3;
+
+            if (ProjectWorldPoint(-298.4, -18, 261, out w0) &&
+                ProjectWorldPoint(-298.4, 58, 261, out w1) &&
+                ProjectWorldPoint(-298.4, 58, 309, out w2) &&
+                ProjectWorldPoint(-298.4, -18, 309, out w3))
+            {
+                using (SolidBrush glassGlow = new SolidBrush(Color.FromArgb(windowAlpha, 255, 238, 190)))
+                using (SolidBrush glassCore = new SolidBrush(Color.FromArgb(windowAlpha / 2, 255, 250, 218)))
+                {
+                    g.FillPolygon(glassGlow, new PointF[] { w0, w1, w2, w3 });
+
+                    PointF centerTop = new PointF((w1.X + w2.X) * 0.5f, (w1.Y + w2.Y) * 0.5f);
+                    PointF centerBottom = new PointF((w0.X + w3.X) * 0.5f, (w0.Y + w3.Y) * 0.5f);
+                    g.FillPolygon(glassCore, new PointF[]
+                    {
+                        new PointF((w0.X + centerBottom.X) * 0.5f, (w0.Y + centerBottom.Y) * 0.5f),
+                        new PointF((w1.X + centerTop.X) * 0.5f, (w1.Y + centerTop.Y) * 0.5f),
+                        new PointF((w2.X + centerTop.X) * 0.5f, (w2.Y + centerTop.Y) * 0.5f),
+                        new PointF((w3.X + centerBottom.X) * 0.5f, (w3.Y + centerBottom.Y) * 0.5f)
+                    });
+                }
+            }
+
+            // ВАЖНО: больше не рисуем длинные экранные лучи поверх всей 3D-сцены.
+            // Такие 2D-полигоны всегда лежат поверх мебели и поэтому просвечивают
+            // через барную стойку. Световое пятно теперь добавлено как 3D-поверхность
+            // пола в MainController и закрывается мебелью обычным порядком слоёв.
+        }
+
         private bool ProjectWorldPoint(double worldX, double worldY, double worldZ, out PointF screenPoint)
         {
             screenPoint = PointF.Empty;
@@ -700,6 +868,7 @@ namespace игра_для_проги
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             DrawObjectives(g);
+            DrawCashCounter(g);
             DrawKeyHints(g);
             DrawPrompt(g);
             DrawBottomText(g);
@@ -708,6 +877,29 @@ namespace игра_для_проги
             DrawHeldTakeawayCup(g);
             DrawRecipeOverlay(g);
             DrawSettingsPanel(g);
+        }
+
+        private void DrawCashCounter(Graphics g)
+        {
+            if (!_game.CashDisplayVisible)
+                return;
+
+            string text = $"касса : {_game.CashAmount}";
+
+            using (Font font = new Font("Arial", 18, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush fillBrush = new SolidBrush(Color.FromArgb(186, 255, 206)))
+            using (Brush outlineBrush = new SolidBrush(Color.FromArgb(245, 255, 255, 255)))
+            {
+                SizeF size = g.MeasureString(text, font);
+                float x = (ClientSize.Width - size.Width) * 0.5f;
+                float y = 18f;
+
+                g.DrawString(text, font, outlineBrush, x - 1, y);
+                g.DrawString(text, font, outlineBrush, x + 1, y);
+                g.DrawString(text, font, outlineBrush, x, y - 1);
+                g.DrawString(text, font, outlineBrush, x, y + 1);
+                g.DrawString(text, font, fillBrush, x, y);
+            }
         }
 
         private void DrawObjectives(Graphics g)
@@ -772,13 +964,37 @@ namespace игра_для_проги
                 text == "Добрый день! Рады вас видеть в нашем кафе, что бы вы хотели заказать?" ||
                 text == "Ага...Чего желаете?" ||
                 text == "Заказ принят, к оплате будет 300 рублей" ||
-                text == "с вас 300р.";
-            bool isIntroNarration =
+                text == "300р";
+            bool isFirstPersonSpeech =
                 text == "Эх... Очередная смена... Очередная неделя без выходных" ||
                 text == "Надо подготовиться к началу смены, убрать и помыть все кружки" ||
-                text == "заправлю кофемашину зернами. где там мешок с кофе...";
+                text == "заправлю кофемашину зернами. где там мешок с кофе..." ||
+                text == "Заправлю кофемашину зернами. где там мешок с кофе..." ||
+                text == "Как же бесят эти выскочки с утра пораньше...";
 
-            if (isClientText || isPlayerAnswer || isIntroNarration)
+            if (isFirstPersonSpeech)
+            {
+                using (Font font = new Font("Arial", 24, FontStyle.Bold))
+                using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(235, 235, 235)))
+                using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(145, 0, 0, 0)))
+                {
+                    int maxPanelWidth = Math.Min(920, ClientSize.Width - 110);
+                    SizeF measured = g.MeasureString(text, font, maxPanelWidth - 56);
+                    int panelWidth = Math.Min(maxPanelWidth, Math.Max(420, (int)Math.Ceiling(measured.Width) + 56));
+                    int panelHeight = Math.Max(86, (int)Math.Ceiling(measured.Height) + 36);
+
+                    int x = (ClientSize.Width - panelWidth) / 2;
+                    int y = ClientSize.Height - panelHeight - 78;
+                    Rectangle panel = new Rectangle(x, y, panelWidth, panelHeight);
+                    g.FillRectangle(bgBrush, panel);
+
+                    RectangleF textRect = new RectangleF(panel.X + 28, panel.Y + 18, panel.Width - 56, panel.Height - 30);
+                    g.DrawString(text, font, textBrush, textRect);
+                    return;
+                }
+            }
+
+            if (isClientText || isPlayerAnswer)
             {
                 using (Font font = new Font("Arial", 24, FontStyle.Bold))
                 using (SolidBrush brush = new SolidBrush(Color.FromArgb(235, 235, 235)))

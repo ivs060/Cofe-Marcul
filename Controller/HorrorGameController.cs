@@ -114,6 +114,7 @@ namespace игра_для_проги.Controller
             ClientOrderPolite,
             PaymentPolite,
             PlayerAnswerRude,
+            PlayerRudeWhisper,
             ClientOrderRude,
             PaymentRude,
             Finished
@@ -127,6 +128,7 @@ namespace игра_для_проги.Controller
         private readonly Action<bool> _setCoffeeStainsTable2Visible;
         private readonly Action<bool> _setReturnedShelfCupsVisible;
         private readonly Action<bool> _setTakeawayShelfCupVisible;
+        private readonly Action<bool, bool> _setTiaOrderExchangeVisible;
         private readonly Action<bool> _setTvScreenVisible;
         private readonly Action<bool> _setCashRecipeScreenVisible;
         private readonly Action<bool, double> _setCoffeeMachineCupState;
@@ -136,6 +138,11 @@ namespace игра_для_проги.Controller
         private readonly Action<bool> _setCoffeeBeanFrontBagVisible;
         private readonly Action<bool, double> _setCoffeeMachineRefillAnimation;
         private readonly Action<bool, double> _setSinkWashAnimation;
+        private readonly Action<bool> _setTiaHoldingCupVisible;
+        private readonly Action<string> _playSound;
+        private readonly Action<string, double> _playSoundFor;
+        private readonly Action<string> _startLoopingSound;
+        private readonly Action<string> _stopLoopingSound;
         private readonly List<GameObjective> _objectives = new List<GameObjective>();
         private readonly List<InteractionZone> _zones = new List<InteractionZone>();
 
@@ -169,6 +176,8 @@ namespace игра_для_проги.Controller
         private double _queuedBottomTextDelay;
         private double _queuedBottomTextDuration;
         private string _queuedBottomText;
+        private bool _delayedRagSoundActive;
+        private double _delayedRagSoundTimer;
 
         private StoryStage _stage;
         private double _messageTimer;
@@ -176,9 +185,20 @@ namespace игра_для_проги.Controller
         private bool _screenFlash;
 
         private bool _clientWalking;
+        private bool _clientLeaving;
         private bool _clientGreetingShown;
         private bool _clientReadyToServe;
         private bool _clientOrderFinished;
+        private bool _tiaPaymentBillVisible;
+        private bool _tiaPaymentCollected;
+        private bool _tiaLeavingDelayActive;
+        private double _tiaLeavingDelayTimer;
+        private bool _tiaLeftForToday;
+        private bool _cashDisplayVisible;
+        private int _cashAmount;
+        private bool _tiaRudeChoice;
+        private bool _tiaThanksExchangePending;
+        private bool _tiaServedCupVisibleUntilThanksEnds;
         private bool _recipeOverlayVisible;
         private bool _clientCountdownActive;
         private bool _returnToCounterCompleted;
@@ -203,6 +223,7 @@ namespace игра_для_проги.Controller
         private const double CoffeeMachineRefillDuration = 4.0;
         private const double SinkWashDuration = 2.4;
         private const double RaspberryPumpAnimationDuration = 0.42;
+        private const double TiaLeavingDelayAfterPayment = 2.0;
 
         public int CurrentDay { get; private set; }
         public bool LightOn { get; private set; }
@@ -254,6 +275,8 @@ namespace игра_для_проги.Controller
         public string ChoiceOption2 { get { return _choiceOption2; } }
         public IReadOnlyList<GameObjective> Objectives { get { return _objectives; } }
         public bool ScreenFlash { get { return _screenFlash; } }
+        public bool CashDisplayVisible { get { return _cashDisplayVisible; } }
+        public int CashAmount { get { return _cashAmount; } }
 
         public HorrorGameController(
             Camera3D camera,
@@ -264,6 +287,7 @@ namespace игра_для_проги.Controller
             Action<bool> setCoffeeStainsTable2Visible,
             Action<bool> setReturnedShelfCupsVisible,
             Action<bool> setTakeawayShelfCupVisible,
+            Action<bool, bool> setTiaOrderExchangeVisible,
             Action<bool> setTvScreenVisible,
             Action<bool> setCashRecipeScreenVisible,
             Action<bool, double> setCoffeeMachineCupState,
@@ -273,7 +297,12 @@ namespace игра_для_проги.Controller
             Action<bool> setCoffeeBeanFrontBagVisible,
             Action<bool, double> setCoffeeMachineRefillAnimation,
             Action<bool, double> setSinkWashAnimation,
-            Action<bool> setTiaBarPassageBlocked)
+            Action<bool> setTiaHoldingCupVisible,
+            Action<bool> setTiaBarPassageBlocked,
+            Action<string> playSound = null,
+            Action<string, double> playSoundFor = null,
+            Action<string> startLoopingSound = null,
+            Action<string> stopLoopingSound = null)
         {
             _camera = camera;
             _setLightSwitchVisual = setLightSwitchVisual;
@@ -283,6 +312,7 @@ namespace игра_для_проги.Controller
             _setCoffeeStainsTable2Visible = setCoffeeStainsTable2Visible;
             _setReturnedShelfCupsVisible = setReturnedShelfCupsVisible;
             _setTakeawayShelfCupVisible = setTakeawayShelfCupVisible;
+            _setTiaOrderExchangeVisible = setTiaOrderExchangeVisible;
             _setTvScreenVisible = setTvScreenVisible;
             _setCashRecipeScreenVisible = setCashRecipeScreenVisible;
             _setCoffeeMachineCupState = setCoffeeMachineCupState;
@@ -292,9 +322,38 @@ namespace игра_для_проги.Controller
             _setCoffeeBeanFrontBagVisible = setCoffeeBeanFrontBagVisible;
             _setCoffeeMachineRefillAnimation = setCoffeeMachineRefillAnimation;
             _setSinkWashAnimation = setSinkWashAnimation;
+            _setTiaHoldingCupVisible = setTiaHoldingCupVisible;
             _setTiaBarPassageBlocked = setTiaBarPassageBlocked;
+            _playSound = playSound;
+            _playSoundFor = playSoundFor;
+            _startLoopingSound = startLoopingSound;
+            _stopLoopingSound = stopLoopingSound;
             CreateZones();
             StartDay1();
+        }
+
+        private void PlaySound(string soundName)
+        {
+            if (_playSound != null)
+                _playSound(soundName);
+        }
+
+        private void PlaySoundFor(string soundName, double maxSeconds)
+        {
+            if (_playSoundFor != null)
+                _playSoundFor(soundName, maxSeconds);
+        }
+
+        private void StartLoopingSound(string soundName)
+        {
+            if (_startLoopingSound != null)
+                _startLoopingSound(soundName);
+        }
+
+        private void StopLoopingSound(string soundName)
+        {
+            if (_stopLoopingSound != null)
+                _stopLoopingSound(soundName);
         }
 
         public void Update(double deltaTime)
@@ -304,6 +363,17 @@ namespace игра_для_проги.Controller
                 _messageTimer -= deltaTime;
                 if (_messageTimer <= 0)
                 {
+                    if (_tiaServedCupVisibleUntilThanksEnds &&
+                        !string.IsNullOrWhiteSpace(BottomText) &&
+                        BottomText.StartsWith("Тиа:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _tiaPaymentBillVisible = true;
+                        _setTiaOrderExchangeVisible?.Invoke(false, true);
+                        _setTiaHoldingCupVisible?.Invoke(true);
+                        _tiaServedCupVisibleUntilThanksEnds = false;
+                        StartTiaLeavingDelay();
+                    }
+
                     BottomText = null;
                     CenterText = null;
                     _screenFlash = false;
@@ -317,7 +387,18 @@ namespace игра_для_проги.Controller
 
                 if (_queuedBottomTextDelay <= 0)
                 {
-                    ShowBottomText(_queuedBottomText, _queuedBottomTextDuration);
+                    string queuedText = _queuedBottomText;
+                    ShowBottomText(queuedText, _queuedBottomTextDuration);
+
+                    if (_tiaThanksExchangePending &&
+                        !string.IsNullOrWhiteSpace(queuedText) &&
+                        queuedText.StartsWith("Тиа:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _setTiaOrderExchangeVisible?.Invoke(true, false);
+                        _tiaThanksExchangePending = false;
+                        _tiaServedCupVisibleUntilThanksEnds = true;
+                    }
+
                     _queuedBottomText = null;
                     _queuedBottomTextDelay = 0;
                     _queuedBottomTextDuration = 0;
@@ -332,6 +413,8 @@ namespace игра_для_проги.Controller
             }
 
             UpdateClientCountdown(deltaTime);
+            UpdateTiaLeavingDelay(deltaTime);
+            UpdateDelayedRagSound(deltaTime);
             UpdateCoffeeMachineRefill(deltaTime);
             UpdateSinkWashAnimation(deltaTime);
             UpdateCoffeeBrewing(deltaTime);
@@ -340,6 +423,104 @@ namespace игра_для_проги.Controller
             _setRaspberryPumpPressed?.Invoke(IsRaspberryPumpAnimating ? RaspberryPumpAnimationProgress : 0);
             UpdateReturnToCounterObjective();
             UpdateClient(deltaTime);
+            UpdatePrompt();
+        }
+
+        public void DebugJumpToGiveOrderObjective()
+        {
+            StopLoopingSound("CoffeeIsPouringOut");
+            StopLoopingSound("coffeeMachine");
+            StopLoopingSound("washingCups");
+            StopLoopingSound("Stomp");
+            _delayedRagSoundActive = false;
+            _delayedRagSoundTimer = 0;
+
+            _table1CupsCollected = true;
+            _table2CupsCollected = true;
+            _table1Wiped = true;
+            _table2Wiped = true;
+            _cupsWashed = true;
+            _cupsReturnedToShelf = true;
+            _sinkWashInProgress = false;
+            _sinkWashTimer = 0;
+
+            _coffeeBeansTaken = true;
+            _coffeeMachineRefillInProgress = false;
+            _coffeeMachineRefillTimer = 0;
+
+            _raspberryLatteQuestStarted = true;
+            _recipeOpenedForLatte = true;
+            _takeawayCupTaken = true;
+            _hasTakeawayCup = true;
+            _coffeePortionsAdded = 1;
+            _milkPortionsAdded = 3;
+            _raspberrySyrupPortionsAdded = 1;
+            _coffeeBrewingInProgress = false;
+            _coffeeBrewingTimer = 0;
+            _raspberryPumpAnimationTimer = 0;
+            _latteReadyToServe = true;
+            _tiaRudeChoice = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _tiaLeavingDelayActive = false;
+            _tiaLeavingDelayTimer = 0;
+            _tiaLeftForToday = false;
+            _cashDisplayVisible = true;
+            _cashAmount = 0;
+
+            _setDirtyCupsTable1Visible?.Invoke(false);
+            _setDirtyCupsTable2Visible?.Invoke(false);
+            _setCoffeeStainsTable1Visible?.Invoke(false);
+            _setCoffeeStainsTable2Visible?.Invoke(false);
+            _setReturnedShelfCupsVisible?.Invoke(true);
+            _setSinkWashAnimation?.Invoke(false, 0);
+            _setCoffeeBeanFrontBagVisible?.Invoke(false);
+            _setCoffeeMachineRefillAnimation?.Invoke(false, 0);
+            _setTakeawayShelfCupVisible?.Invoke(false);
+            _setCoffeeMachineCupState?.Invoke(false, 1.0);
+            _setRaspberryPumpPressed?.Invoke(0);
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
+            _setTiaHoldingCupVisible?.Invoke(false);
+
+            _clientCountdownActive = false;
+            _clientCountdownTimer = 0;
+            _clientWalking = false;
+            _clientLeaving = false;
+            _clientGreetingShown = true;
+            _clientReadyToServe = false;
+            _clientOrderFinished = true;
+            _clientDialogueStage = ClientDialogueStage.Finished;
+            _choiceActive = false;
+            _choiceOption1 = null;
+            _choiceOption2 = null;
+            _clientX = ClientTargetX;
+            _clientZ = ClientTargetZ;
+            _clientYaw = 0;
+            _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
+            _setClientVisible?.Invoke(true);
+            _setTiaBarPassageBlocked?.Invoke(true);
+
+            // Debug-телепорт: ставим игрока внутри бара напротив Тии.
+            // Тиа стоит примерно у ClientTargetX/ClientTargetZ, игрок — за стойкой, смотрит на неё.
+            if (_camera != null)
+                _camera.Set(ClientTargetX, 0, 470, Math.PI);
+
+            _objectives.Clear();
+            _objectives.Add(new GameObjective("включить свет") { IsCompleted = true });
+            _objectives.Add(new GameObjective("собрать грязные чашки со стола") { IsCompleted = true });
+            _objectives.Add(new GameObjective("помыть чашки") { IsCompleted = true });
+            _objectives.Add(new GameObjective("положить чашки на полку") { IsCompleted = true });
+            _objectives.Add(new GameObjective("протереть столы") { IsCompleted = true });
+            _objectives.Add(new GameObjective("заправить кофемашину") { IsCompleted = true });
+            _objectives.Add(new GameObjective("Вернись за прилавок") { IsCompleted = true });
+            _objectives.Add(new GameObjective("приготовить малиновый латте") { IsCompleted = true });
+            _objectives.Add(new GameObjective("отдать заказ"));
+
+            BottomText = "DEBUG: сразу перешла к цели отдать заказ.";
+            CenterText = null;
+            _messageTimer = 1.6;
             UpdatePrompt();
         }
 
@@ -354,6 +535,7 @@ namespace игра_для_проги.Controller
 
             if (option == 1)
             {
+                _tiaRudeChoice = false;
                 _clientDialogueStage = ClientDialogueStage.PlayerAnswerPolite;
                 ShowBottomText("Добрый день! Рады вас видеть в нашем кафе, что бы вы хотели заказать?", 5.0);
                 return;
@@ -361,6 +543,7 @@ namespace игра_для_проги.Controller
 
             if (option == 2)
             {
+                _tiaRudeChoice = true;
                 Reputation -= 1;
                 _clientDialogueStage = ClientDialogueStage.PlayerAnswerRude;
                 ShowBottomText("Ага...Чего желаете?", 5.0);
@@ -445,6 +628,10 @@ namespace игра_для_проги.Controller
                     InteractRaspberrySyrup();
                     break;
 
+                case "tia_payment":
+                    InteractTakeTiaPayment();
+                    break;
+
                 case "cash_register":
                     CompleteObjective("посчитать кассу", "Касса посчитана. Не хватает одной монеты.");
                     break;
@@ -478,6 +665,7 @@ namespace игра_для_проги.Controller
             _zones.Add(new InteractionZone("table2_wipe", "E — протереть второй стол", 150, 155, 72, true));
             _zones.Add(new InteractionZone("tv", "E — включить телевизор", 0, 70, 90, true));
             _zones.Add(new InteractionZone("client_tia", "E — Обслужить клиента: Тиа", ClientTargetX, ClientTargetZ, 150, true));
+            _zones.Add(new InteractionZone("tia_payment", "E — забрать деньги", 6, 414, 84, true));
             _zones.Add(new InteractionZone("counter", "E — обслужить клиента у прилавка", 60, 360, 95));
             _zones.Add(new InteractionZone("cash_recipe", "E — Посмотреть рецепт", 98, 395, 105, true));
             _zones.Add(new InteractionZone("coffee_beans", "E — взять кофейные зёрна", 138, 400, 78, true));
@@ -503,12 +691,27 @@ namespace игра_для_проги.Controller
             ResetClientState();
             _setCashRecipeScreenVisible?.Invoke(false);
             _recipeOverlayVisible = false;
+            _cashDisplayVisible = false;
+            _cashAmount = 0;
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _tiaLeavingDelayActive = false;
+            _tiaLeavingDelayTimer = 0;
+            _tiaLeftForToday = false;
+            _setTiaHoldingCupVisible?.Invoke(false);
             _clientCountdownActive = false;
             _returnToCounterCompleted = false;
             _raspberryLatteQuestStarted = false;
             _recipeOpenedForLatte = false;
             _takeawayCupTaken = false;
             _hasTakeawayCup = false;
+            _tiaRudeChoice = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
+            _setTiaHoldingCupVisible?.Invoke(false);
             ResetLatteCupState();
             _setTakeawayShelfCupVisible?.Invoke(true);
             _clientCountdownTimer = 0;
@@ -531,6 +734,10 @@ namespace игра_для_проги.Controller
             _recipeOpenedForLatte = false;
             _takeawayCupTaken = false;
             _hasTakeawayCup = false;
+            _tiaRudeChoice = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
             ResetLatteCupState();
             _setTakeawayShelfCupVisible?.Invoke(true);
             _clientCountdownTimer = 0;
@@ -552,6 +759,10 @@ namespace игра_для_проги.Controller
             _recipeOpenedForLatte = false;
             _takeawayCupTaken = false;
             _hasTakeawayCup = false;
+            _tiaRudeChoice = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
             ResetLatteCupState();
             _setTakeawayShelfCupVisible?.Invoke(true);
             _clientCountdownTimer = 0;
@@ -589,6 +800,9 @@ namespace игра_для_проги.Controller
             _sinkWashInProgress = false;
             _sinkWashTimer = 0;
             _setSinkWashAnimation?.Invoke(false, 0);
+            StopLoopingSound("washingCups");
+            _delayedRagSoundActive = false;
+            _delayedRagSoundTimer = 0;
             _tvTurnedOn = false;
             _clientCountdownActive = false;
             _returnToCounterCompleted = false;
@@ -596,6 +810,10 @@ namespace игра_для_проги.Controller
             _recipeOpenedForLatte = false;
             _takeawayCupTaken = false;
             _hasTakeawayCup = false;
+            _tiaRudeChoice = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
             ResetLatteCupState();
             _setTakeawayShelfCupVisible?.Invoke(true);
             _clientCountdownTimer = 0;
@@ -614,7 +832,12 @@ namespace игра_для_проги.Controller
 
             _objectives.Clear();
             _objectives.Add(new GameObjective("включить свет"));
-            _objectives.Add(new GameObjective("собрать грязные чашки со стола"));
+        }
+
+        private void AddDirtyCupsObjectiveAfterLight()
+        {
+            if (FindObjective("собрать грязные чашки со стола") == null)
+                _objectives.Add(new GameObjective("собрать грязные чашки со стола"));
         }
 
         private void SetEndShiftObjectives()
@@ -632,12 +855,15 @@ namespace игра_для_проги.Controller
                 _screenFlash = true;
                 LightOn = true;
                 _setLightSwitchVisual?.Invoke(LightOn);
+                PlaySound("lamp");
                 CompleteObjective("включить свет", "Свет включился не сразу. В отражении будто кто-то стоял за спиной.");
+                AddDirtyCupsObjectiveAfterLight();
                 return;
             }
 
             LightOn = !LightOn;
             _setLightSwitchVisual?.Invoke(LightOn);
+            PlaySound("lamp");
 
             if (LightOn)
             {
@@ -645,6 +871,7 @@ namespace игра_для_проги.Controller
                 {
                     _day1IntroLineShown = true;
                     CompleteObjective("включить свет", null);
+                    AddDirtyCupsObjectiveAfterLight();
                     ShowBottomText("Эх... Очередная смена... Очередная неделя без выходных", 5.0);
                     QueueBottomText("Надо подготовиться к началу смены, убрать и помыть все кружки", 5.0, 5.0);
                     _day1SecondIntroLineScheduled = true;
@@ -652,6 +879,7 @@ namespace игра_для_проги.Controller
                 else
                 {
                     CompleteObjective("включить свет", "Свет включён.");
+                    AddDirtyCupsObjectiveAfterLight();
                 }
             }
             else
@@ -676,11 +904,10 @@ namespace игра_для_проги.Controller
 
             _table1CupsCollected = true;
             _setDirtyCupsTable1Visible?.Invoke(false);
+            PlaySoundFor("cup", 1.0);
 
             if (AllDirtyCupsCollected())
                 FinishDirtyCupsCollected();
-            else
-                ShowBottomText("Ты собрала кружки с первого стола. Осталась кружка на втором столе.", 2.4);
         }
 
         private void InteractDirtyCupsTable2()
@@ -699,11 +926,10 @@ namespace игра_для_проги.Controller
 
             _table2CupsCollected = true;
             _setDirtyCupsTable2Visible?.Invoke(false);
+            PlaySoundFor("cup", 1.0);
 
             if (AllDirtyCupsCollected())
                 FinishDirtyCupsCollected();
-            else
-                ShowBottomText("Ты собрала кружку со второго стола. Остались кружки на первом столе.", 2.4);
         }
 
         private void FinishDirtyCupsCollected()
@@ -712,7 +938,6 @@ namespace игра_для_проги.Controller
                 _objectives.Add(new GameObjective("помыть чашки"));
 
             CompleteObjective("собрать грязные чашки со стола", null);
-            ShowBottomText("Все грязные кружки собраны. Теперь их нужно помыть у раковины.", 2.4);
         }
 
         private bool AllDirtyCupsCollected()
@@ -741,11 +966,10 @@ namespace игра_для_проги.Controller
 
             _table1Wiped = true;
             _setCoffeeStainsTable1Visible?.Invoke(false);
+            ScheduleDelayedRagSound();
 
             if (AllTablesWiped())
                 FinishTablesWiped();
-            else
-                ShowBottomText("Первый стол протёрт. На втором ещё остались следы кофе.", 2.2);
         }
 
         private void InteractWipeTable2()
@@ -764,11 +988,10 @@ namespace игра_для_проги.Controller
 
             _table2Wiped = true;
             _setCoffeeStainsTable2Visible?.Invoke(false);
+            ScheduleDelayedRagSound();
 
             if (AllTablesWiped())
                 FinishTablesWiped();
-            else
-                ShowBottomText("Второй стол протёрт. На первом ещё остались следы кофе.", 2.2);
         }
 
         private void FinishTablesWiped()
@@ -804,6 +1027,7 @@ namespace игра_для_проги.Controller
 
             _coffeeBeansTaken = true;
             _setCoffeeBeanFrontBagVisible?.Invoke(false);
+            PlaySound("generalInteraction");
         }
 
         private void InteractTv()
@@ -863,6 +1087,7 @@ namespace игра_для_проги.Controller
             _sinkWashInProgress = true;
             _sinkWashTimer = 0;
             _setSinkWashAnimation?.Invoke(true, 0);
+            StartLoopingSound("washingCups");
         }
 
         private void InteractCupShelf()
@@ -873,9 +1098,11 @@ namespace игра_для_проги.Controller
                 _hasTakeawayCup = true;
                 ResetLatteCupState();
                 _setTakeawayShelfCupVisible?.Invoke(false);
+                PlaySound("generalInteraction");
                 CompleteLatteSubObjective("взять стакан одноразовый стакан");
 
-                ShowBottomText("Ты взяла одноразовый стакан.", 2.0);
+                if (_tiaRudeChoice)
+                    ShowBottomText("Как же бесят эти выскочки с утра пораньше...", 3.2);
                 return;
             }
 
@@ -905,12 +1132,12 @@ namespace игра_для_проги.Controller
 
             _cupsReturnedToShelf = true;
             _setReturnedShelfCupsVisible?.Invoke(true);
+            PlaySoundFor("cup", 1.0);
 
             if (FindObjective("протереть столы") == null)
                 _objectives.Add(new GameObjective("протереть столы"));
 
             CompleteObjective("положить чашки на полку", null);
-            ShowBottomText("Теперь нужно протереть столы от разводов", 5.0);
         }
 
         private void InteractCounter()
@@ -1054,12 +1281,25 @@ namespace игра_для_проги.Controller
 
         private void ResetClientState()
         {
+            StopLoopingSound("CoffeeIsPouringOut");
+            StopLoopingSound("coffeeMachine");
+            StopLoopingSound("washingCups");
+            StopLoopingSound("Stomp");
+            _delayedRagSoundActive = false;
+            _delayedRagSoundTimer = 0;
+
             _clientWalking = false;
+            _clientLeaving = false;
             _clientGreetingShown = false;
             _clientReadyToServe = false;
             _clientOrderFinished = false;
             _recipeOverlayVisible = false;
             _setCashRecipeScreenVisible?.Invoke(false);
+            _cashDisplayVisible = false;
+            _cashAmount = 0;
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _setTiaHoldingCupVisible?.Invoke(false);
             _clientCountdownActive = false;
             _clientDialogueStage = ClientDialogueStage.None;
             _choiceActive = false;
@@ -1078,9 +1318,13 @@ namespace игра_для_проги.Controller
 
         private void StartClientArrival()
         {
+            if (_tiaLeftForToday)
+                return;
+
             _clientCountdownActive = false;
             _clientCountdownTimer = 0;
             _clientWalking = false;
+            _clientLeaving = false;
             _clientGreetingShown = false;
             _clientReadyToServe = false;
             _clientOrderFinished = false;
@@ -1094,7 +1338,16 @@ namespace игра_для_проги.Controller
             _clientYaw = -1.45;
             _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
             _setClientVisible?.Invoke(true);
+            PlaySoundFor("door", 1.5);
+            StartLoopingSound("Stomp");
             _clientWalking = true;
+            _cashDisplayVisible = true;
+            _cashAmount = 0;
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _tiaLeavingDelayActive = false;
+            _tiaLeavingDelayTimer = 0;
+            _setTiaHoldingCupVisible?.Invoke(false);
             _stage = StoryStage.Day1Client1;
         }
 
@@ -1142,8 +1395,83 @@ namespace игра_для_проги.Controller
                    _camera.Z <= 592;
         }
 
+        private void ScheduleDelayedRagSound()
+        {
+            _delayedRagSoundActive = false;
+            _delayedRagSoundTimer = 0;
+            PlaySoundFor("rag", 1.0);
+        }
+
+        private void UpdateDelayedRagSound(double deltaTime)
+        {
+            if (!_delayedRagSoundActive)
+                return;
+
+            _delayedRagSoundTimer -= deltaTime;
+            if (_delayedRagSoundTimer > 0)
+                return;
+
+            _delayedRagSoundActive = false;
+            _delayedRagSoundTimer = 0;
+            PlaySoundFor("rag", 1.0);
+        }
+
+        private void UpdateTiaLeavingDelay(double deltaTime)
+        {
+            if (!_tiaLeavingDelayActive || _clientLeaving || _tiaLeftForToday)
+                return;
+
+            _tiaLeavingDelayTimer -= deltaTime;
+            if (_tiaLeavingDelayTimer <= 0)
+            {
+                _tiaLeavingDelayActive = false;
+                _tiaLeavingDelayTimer = 0;
+                StartTiaLeaving();
+            }
+        }
+
         private void UpdateClient(double deltaTime)
         {
+            if (_clientWalking || _clientLeaving)
+                StartLoopingSound("Stomp");
+
+            if (_clientLeaving)
+            {
+                double dx = ClientStartX - _clientX;
+                double dz = ClientStartZ - _clientZ;
+                double distance = Math.Sqrt(dx * dx + dz * dz);
+
+                if (distance <= 0.001)
+                {
+                    FinishTiaLeaving();
+                }
+                else
+                {
+                    double speedFactor = distance < 40 ? 0.55 + distance / 80.0 : 1.0;
+                    double step = ClientMoveSpeed * speedFactor * deltaTime;
+
+                    if (step >= distance)
+                    {
+                        _clientX = ClientStartX;
+                        _clientZ = ClientStartZ;
+                        _clientYaw = Math.Atan2(dx, dz);
+                        _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
+                        FinishTiaLeaving();
+                    }
+                    else
+                    {
+                        dx /= distance;
+                        dz /= distance;
+                        _clientX += dx * step;
+                        _clientZ += dz * step;
+                        _clientYaw = Math.Atan2(dx, dz);
+                        _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
+                    }
+                }
+
+                return;
+            }
+
             if (_clientWalking)
             {
                 double dx = ClientTargetX - _clientX;
@@ -1183,9 +1511,59 @@ namespace игра_для_проги.Controller
                 _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
         }
 
+        private void StartTiaLeaving()
+        {
+            if (_clientLeaving || _tiaLeftForToday)
+                return;
+
+            _tiaLeavingDelayActive = false;
+            _tiaLeavingDelayTimer = 0;
+            _tiaLeftForToday = true;
+            _clientLeaving = true;
+            _clientWalking = false;
+            _clientReadyToServe = false;
+            _clientGreetingShown = true;
+            _clientOrderFinished = true;
+            _choiceActive = false;
+            _choiceOption1 = null;
+            _choiceOption2 = null;
+            _setTiaOrderExchangeVisible?.Invoke(false, _tiaPaymentBillVisible && !_tiaPaymentCollected);
+            _setTiaHoldingCupVisible?.Invoke(true);
+            StartLoopingSound("Stomp");
+            _setTiaBarPassageBlocked?.Invoke(false);
+        }
+
+        private void StartTiaLeavingDelay()
+        {
+            if (_tiaLeftForToday || _clientLeaving)
+                return;
+
+            _tiaLeavingDelayActive = true;
+            _tiaLeavingDelayTimer = TiaLeavingDelayAfterPayment;
+        }
+
+        private void FinishTiaLeaving()
+        {
+            _clientLeaving = false;
+            _clientWalking = false;
+            _tiaLeavingDelayActive = false;
+            _tiaLeavingDelayTimer = 0;
+            _clientReadyToServe = false;
+            _clientGreetingShown = false;
+            _clientX = ClientStartX;
+            _clientZ = ClientStartZ;
+            _clientYaw = -1.45;
+            _setClientTransform?.Invoke(_clientX, _clientZ, _clientYaw);
+            _setTiaHoldingCupVisible?.Invoke(false);
+            StopLoopingSound("Stomp");
+            PlaySoundFor("door", 1.5);
+            _setClientVisible?.Invoke(false);
+        }
+
         private void FinishClientArrival()
         {
             _clientWalking = false;
+            StopLoopingSound("Stomp");
             _clientX = ClientTargetX;
             _clientZ = ClientTargetZ;
             _clientYaw = 0;
@@ -1217,6 +1595,9 @@ namespace игра_для_проги.Controller
             _recipeOpenedForLatte = false;
             _takeawayCupTaken = false;
             _hasTakeawayCup = false;
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
             ResetLatteCupState();
 
             _objectives.Clear();
@@ -1229,6 +1610,7 @@ namespace игра_для_проги.Controller
         private void InteractCashRecipe()
         {
             _recipeOverlayVisible = true;
+            PlaySound("generalInteraction");
 
             GameObjective recipeObjective = FindObjective("открыть рецепт");
             if (_raspberryLatteQuestStarted && recipeObjective != null && !recipeObjective.IsCompleted)
@@ -1261,7 +1643,7 @@ namespace игра_для_проги.Controller
                 _coffeeMachineRefillInProgress = true;
                 _coffeeMachineRefillTimer = CoffeeMachineRefillDuration;
                 _setCoffeeMachineRefillAnimation?.Invoke(true, 0);
-                ShowBottomText("Кофейные зёрна засыпаются в кофемашину...", 1.8);
+                StartLoopingSound("CoffeeIsPouringOut");
                 return;
             }
 
@@ -1291,7 +1673,7 @@ namespace игра_для_проги.Controller
 
             _coffeeBrewingInProgress = true;
             _coffeeBrewingTimer = CoffeeBrewDuration;
-            ShowBottomText("Кофе варится...", 1.2);
+            StartLoopingSound("coffeeMachine");
         }
 
         private void InteractFridgeMilk()
@@ -1321,6 +1703,7 @@ namespace игра_для_проги.Controller
             }
 
             _milkPortionsAdded++;
+            PlaySound("milk");
 
             if (_milkPortionsAdded >= 3)
             {
@@ -1361,14 +1744,17 @@ namespace игра_для_проги.Controller
 
             _raspberrySyrupPortionsAdded = 1;
             _raspberryPumpAnimationTimer = RaspberryPumpAnimationDuration;
+            PlaySound("syrup");
             EvaluateLatteQuestCompletion();
-            ShowBottomText("Малиновый сироп добавлен.", 1.8);
         }
 
         private void UpdateSinkWashAnimation(double deltaTime)
         {
             if (!_sinkWashInProgress)
+            {
+                StopLoopingSound("washingCups");
                 return;
+            }
 
             _sinkWashTimer += deltaTime;
             double progress = _sinkWashTimer / SinkWashDuration;
@@ -1382,14 +1768,15 @@ namespace игра_для_проги.Controller
 
             _sinkWashInProgress = false;
             _sinkWashTimer = 0;
+            StopLoopingSound("washingCups");
             _setSinkWashAnimation?.Invoke(false, 0);
+            StopLoopingSound("washingCups");
             _cupsWashed = true;
 
             if (FindObjective("положить чашки на полку") == null)
                 _objectives.Add(new GameObjective("положить чашки на полку"));
 
             CompleteObjective("помыть чашки", null);
-            ShowBottomText("Кружки вымыты. Теперь поставь их на полку.", 2.6);
         }
 
         private void UpdateCoffeeMachineRefill(double deltaTime)
@@ -1413,13 +1800,13 @@ namespace игра_для_проги.Controller
             _coffeeMachineRefillTimer = 0;
             _coffeeBeansTaken = false;
             _setCoffeeMachineRefillAnimation?.Invoke(false, 0);
+            StopLoopingSound("CoffeeIsPouringOut");
             _setCoffeeBeanFrontBagVisible?.Invoke(true);
 
             if (FindObjective("включить телевизор") == null)
                 _objectives.Add(new GameObjective("включить телевизор"));
 
             CompleteObjective("заправить кофемашину", null);
-            ShowBottomText("Кофемашина заправлена. Теперь нужно включить телевизор", 4.2);
         }
 
         private void UpdateCoffeeBrewing(double deltaTime)
@@ -1433,9 +1820,9 @@ namespace игра_для_проги.Controller
 
             _coffeeBrewingInProgress = false;
             _coffeeBrewingTimer = 0;
+            StopLoopingSound("coffeeMachine");
             _coffeePortionsAdded = 1;
             EvaluateLatteQuestCompletion();
-            ShowBottomText("Порция кофе готова.", 1.8);
         }
 
         private void UpdateRaspberryPumpAnimation(double deltaTime)
@@ -1464,10 +1851,37 @@ namespace игра_для_проги.Controller
             }
 
             giveOrderObjective.IsCompleted = true;
+            PlaySound("generalInteraction");
             _latteReadyToServe = false;
             _hasTakeawayCup = false;
-            ShowBottomText("Ты отдала заказ Тиа.", 2.2);
-            QueueBottomText("Тиа: Спасибо.", 2.2, 2.4);
+            _tiaPaymentBillVisible = false;
+            _tiaPaymentCollected = false;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
+            _setTiaHoldingCupVisible?.Invoke(false);
+            _tiaThanksExchangePending = true;
+            _tiaServedCupVisibleUntilThanksEnds = false;
+
+            string tiaThanksText = _tiaRudeChoice ? "Тиа: Благодарю." : "Тиа: Огромное спасибо!";
+            _setTiaOrderExchangeVisible?.Invoke(true, false);
+            _tiaThanksExchangePending = false;
+            _tiaServedCupVisibleUntilThanksEnds = true;
+            ShowBottomText(tiaThanksText, 2.4);
+        }
+
+        private void InteractTakeTiaPayment()
+        {
+            if (!_tiaPaymentBillVisible || _tiaPaymentCollected)
+            {
+                ShowBottomText("Сейчас на стойке нечего забирать.", 1.4);
+                return;
+            }
+
+            _tiaPaymentCollected = true;
+            PlaySound("generalInteraction");
+            _tiaPaymentBillVisible = false;
+            _cashAmount = 300;
+            _setTiaOrderExchangeVisible?.Invoke(false, false);
+            _setTiaHoldingCupVisible?.Invoke(true);
         }
 
         private void EvaluateLatteQuestCompletion()
@@ -1486,7 +1900,6 @@ namespace игра_для_проги.Controller
                     _objectives.Add(new GameObjective("отдать заказ"));
 
                 ShowBottomText("Малиновый латте готов.", 2.0);
-                QueueBottomText("Нужно отдать заказ", 2.0, 2.2);
             }
         }
 
@@ -1531,7 +1944,7 @@ namespace игра_для_проги.Controller
 
                 case ClientDialogueStage.ClientOrderRude:
                     _clientDialogueStage = ClientDialogueStage.PaymentRude;
-                    ShowBottomText("с вас 300р.", 5.0);
+                    ShowBottomText("300р", 5.0);
                     break;
 
                 case ClientDialogueStage.PaymentRude:
@@ -1594,6 +2007,12 @@ namespace игра_для_проги.Controller
             if (zone.Id == "client_tia" && FindObjective("отдать заказ") != null && !FindObjective("отдать заказ").IsCompleted)
             {
                 PromptText = "E — отдать заказ";
+                return;
+            }
+
+            if (zone.Id == "tia_payment")
+            {
+                PromptText = "E — забрать деньги";
                 return;
             }
 
@@ -1670,6 +2089,9 @@ namespace игра_для_проги.Controller
 
             if (zone.Id == "client_tia")
             {
+                if (_clientLeaving)
+                    return false;
+
                 if (FindObjective("отдать заказ") != null && !FindObjective("отдать заказ").IsCompleted)
                 {
                     double dxGive = _camera.X - ClientTargetX;
@@ -1679,6 +2101,9 @@ namespace игра_для_проги.Controller
 
                 return _clientReadyToServe && !_clientGreetingShown;
             }
+
+            if (zone.Id == "tia_payment")
+                return _tiaPaymentBillVisible && !_tiaPaymentCollected;
 
             if (zone.Id == "cash_recipe")
                 return _clientOrderFinished;
@@ -1754,6 +2179,27 @@ namespace игра_для_проги.Controller
         {
             BottomText = text;
             _messageTimer = seconds;
+
+            if (ShouldPlayDialogueSound(text))
+                PlaySound("dialogue");
+        }
+
+        private bool ShouldPlayDialogueSound(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            if (text.StartsWith("Тиа:", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (text.StartsWith("Клиент:", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return
+                text == "Добрый день! Рады вас видеть в нашем кафе, что бы вы хотели заказать?" ||
+                text == "Ага...Чего желаете?" ||
+                text == "Заказ принят, к оплате будет 300 рублей" ||
+                text == "300р";
         }
 
         private void ShowCenterText(string text, double seconds)
