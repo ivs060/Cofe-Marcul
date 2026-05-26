@@ -28,7 +28,7 @@ namespace игра_для_проги
         private bool _settingsOpen = false;
         private int _draggedSettingsSlider = 0; // 0 = нет, 1 = чувствительность, 2 = громкость
         private double _mouseSensitivity = 0.002558923636;
-        private double _volume = 1.0;
+        private double _volume = 0.5;
         private bool _cursorHidden = false;
 
         private bool _isFullscreen = false;
@@ -76,28 +76,41 @@ namespace игра_для_проги
                 _controller.SetCoffeeStainsOnTable2Visible,
                 _controller.SetReturnedShelfCupsVisible,
                 _controller.SetTakeawayShelfCupVisible,
+                _controller.SetBigGlassShelfCupVisible,
                 _controller.SetTiaOrderExchangeVisible,
+                _controller.SetMikeOrderExchangeVisible,
                 SetTvScreenOnAndStartMusic,
                 _controller.SetCashRecipeScreenVisible,
                 _controller.SetCoffeeMachineCupState,
+                _controller.SetCoffeeMachinePaperCupMode,
                 _controller.SetRaspberryPumpPressed,
                 _controller.SetClientVisible,
                 _controller.SetClientTransform,
+                _controller.SetClientSpeaking,
+                _controller.SetMikeVisible,
+                _controller.SetMikeTransform,
+                _controller.SetMikeSpeaking,
+                _controller.SetMikeWideEyesVisible,
+                _controller.SetMikeHeadTrackingActive,
+                _controller.SetMikeSmileProgress,
+                _controller.SetMikeHoldingOrderVisible,
                 _controller.SetCoffeeBeanFrontBagVisible,
                 _controller.SetCoffeeMachineRefillAnimation,
+                _controller.SetIceMakerLidAnimation,
                 SetSinkWashAnimationAndSound,
                 _controller.SetTiaHoldingCupVisible,
                 _controller.SetTiaBarPassageBlocked,
                 PlayGameSound,
                 PlayGameSoundFor,
                 StartGameSoundLoop,
-                StopGameSoundLoop
+                StopGameSoundLoop,
+                SetGameSoundLoopVolume,
+                _controller.SetEveningWindowLight
             );
 
             _audio = new AudioManager();
-            _audio.MusicVolume = 0.35f;
-            _audio.SoundVolume = 0.85f;
             _musicStarted = false;
+            ApplyAudioVolumeFromSlider();
 
             // KeyDown уже подключен в Form1.Designer.cs.
             // KeyUp там нет, поэтому подключаем здесь.
@@ -107,7 +120,7 @@ namespace игра_для_проги
 
             // Для GDI+ лучше 30 FPS, чем пытаться насильно держать 60 FPS.
             // Так меньше дерганий и меньше нагрузка на WinForms.
-            _gameTimer.Interval = 16;
+            _gameTimer.Interval = 33;
             _gameTimer.Tick += GameTimer_Tick;
 
             _frameClock.Start();
@@ -206,7 +219,11 @@ namespace игра_для_проги
             if (_audio == null)
                 return;
 
-            float volumeMultiplier = string.Equals(fileName, "Stomp", StringComparison.OrdinalIgnoreCase) ? 0.5f : 1.0f;
+            float volumeMultiplier = 1.0f;
+            if (string.Equals(fileName, "Stomp", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fileName, "Day1Mike", StringComparison.OrdinalIgnoreCase))
+                volumeMultiplier = 0.5f;
+
             _audio.StartLoopingSound(fileName, GetMusicAssetPath(fileName), volumeMultiplier);
         }
 
@@ -215,7 +232,22 @@ namespace игра_для_проги
             if (_audio == null)
                 return;
 
+            if (string.Equals(fileName, "back", StringComparison.OrdinalIgnoreCase))
+            {
+                _audio.StopMusic();
+                _musicStarted = false;
+                return;
+            }
+
             _audio.StopLoopingSound(fileName);
+        }
+
+        private void SetGameSoundLoopVolume(string fileName, double volumeMultiplier)
+        {
+            if (_audio == null)
+                return;
+
+            _audio.SetLoopingSoundVolume(fileName, (float)volumeMultiplier);
         }
 
         private void HideGameCursor()
@@ -314,6 +346,12 @@ namespace игра_для_проги
             if (_settingsOpen)
                 return;
 
+            if (_game != null && _game.IsPlayerLookLocked)
+            {
+                CenterMouseForStableLook();
+                return;
+            }
+
             if (!_mouseLookActive)
                 return;
 
@@ -405,6 +443,14 @@ namespace игра_для_проги
             {
                 _game.Interact();
                 Invalidate();
+                return;
+            }
+
+            if (_game != null && _game.IsPlayerMovementLocked &&
+                (e.KeyCode == Keys.W || e.KeyCode == Keys.A || e.KeyCode == Keys.S || e.KeyCode == Keys.D))
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
                 return;
             }
 
@@ -578,7 +624,37 @@ namespace игра_для_проги
             Rectangle slider = GetVolumeSliderBounds();
             double t = (mouseX - slider.Left) / (double)slider.Width;
             _volume = Clamp01(t);
+            ApplyAudioVolumeFromSlider();
             Invalidate();
+        }
+
+        private void ApplyAudioVolumeFromSlider()
+        {
+            if (_audio == null)
+                return;
+
+            double scale = GetVolumeScaleFromSlider();
+            _audio.MusicVolume = (float)(0.35 * scale);
+            _audio.SoundVolume = (float)(0.85 * scale);
+        }
+
+        private double GetVolumeScaleFromSlider()
+        {
+            double percent = Clamp01(_volume) * 100.0;
+
+            if (percent <= 0.0)
+                return 0.0;
+
+            if (percent <= 25.0)
+                return (percent / 25.0) * (4.0 / 3.0);
+
+            if (percent <= 50.0)
+                return (4.0 / 3.0) + ((percent - 25.0) / 25.0) * (2.0 / 3.0);
+
+            if (percent <= 75.0)
+                return 2.0 + ((percent - 50.0) / 25.0);
+
+            return 3.0 + ((percent - 75.0) / 25.0);
         }
 
         private double Clamp01(double value)
@@ -613,18 +689,22 @@ namespace игра_для_проги
             double localDx = 0;
             double localDy = 0;
             double localDz = 0;
+            bool movementLocked = _game != null && _game.IsPlayerMovementLocked;
 
-            if (_pressedKeys.Contains(Keys.W))
-                localDz += 1;
+            if (!movementLocked)
+            {
+                if (_pressedKeys.Contains(Keys.W))
+                    localDz += 1;
 
-            if (_pressedKeys.Contains(Keys.S))
-                localDz -= 1;
+                if (_pressedKeys.Contains(Keys.S))
+                    localDz -= 1;
 
-            if (_pressedKeys.Contains(Keys.A))
-                localDx -= 1;
+                if (_pressedKeys.Contains(Keys.A))
+                    localDx -= 1;
 
-            if (_pressedKeys.Contains(Keys.D))
-                localDx += 1;
+                if (_pressedKeys.Contains(Keys.D))
+                    localDx += 1;
+            }
 
             // На финальной версии лучше не давать летать.
             // Поэтому Space и Ctrl пока не используем.
@@ -633,6 +713,7 @@ namespace игра_для_проги
             {
                 _game.Update(deltaTime);
                 _controller.AnimateTvScreen(deltaTime);
+                _controller.AnimateNpcBlink(deltaTime);
                 Invalidate();
                 return;
             }
@@ -657,6 +738,7 @@ namespace игра_для_проги
 
             _game.Update(deltaTime);
             _controller.AnimateTvScreen(deltaTime);
+            _controller.AnimateNpcBlink(deltaTime);
             Invalidate();
         }
 
@@ -684,6 +766,7 @@ namespace игра_для_проги
 
             DrawGameEffects(g);
             DrawGameUi(g);
+            DrawTimePassTransition(g);
         }
 
         private void DrawGameEffects(Graphics g)
@@ -785,9 +868,11 @@ namespace игра_для_проги
             if (_game == null)
                 return;
 
-            // Утренний свет из левого окна. Рисуем его поверх затемнения,
-            // поэтому он остаётся видимым даже при выключенном свете.
-            int windowAlpha = _game.LightOn ? 72 : 128;
+            // Свет из левого окна. После перехода времени он становится вечерним и темнее.
+            bool evening = _game != null && _game.EveningWindowLight;
+            int windowAlpha = evening ? (_game.LightOn ? 22 : 42) : (_game.LightOn ? 72 : 128);
+            Color windowGlowColor = evening ? Color.FromArgb(windowAlpha, 86, 60, 118) : Color.FromArgb(windowAlpha, 255, 238, 190);
+            Color windowCoreColor = evening ? Color.FromArgb(Math.Max(8, windowAlpha / 2), 52, 38, 88) : Color.FromArgb(windowAlpha / 2, 255, 250, 218);
 
             PointF w0;
             PointF w1;
@@ -799,8 +884,8 @@ namespace игра_для_проги
                 ProjectWorldPoint(-298.4, 58, 309, out w2) &&
                 ProjectWorldPoint(-298.4, -18, 309, out w3))
             {
-                using (SolidBrush glassGlow = new SolidBrush(Color.FromArgb(windowAlpha, 255, 238, 190)))
-                using (SolidBrush glassCore = new SolidBrush(Color.FromArgb(windowAlpha / 2, 255, 250, 218)))
+                using (SolidBrush glassGlow = new SolidBrush(windowGlowColor))
+                using (SolidBrush glassCore = new SolidBrush(windowCoreColor))
                 {
                     g.FillPolygon(glassGlow, new PointF[] { w0, w1, w2, w3 });
 
@@ -875,8 +960,44 @@ namespace игра_для_проги
             DrawCenterText(g);
             DrawDialogueChoice(g);
             DrawHeldTakeawayCup(g);
+            DrawHeldBigGlass(g);
             DrawRecipeOverlay(g);
             DrawSettingsPanel(g);
+        }
+
+        private void DrawTimePassTransition(Graphics g)
+        {
+            if (_game == null || !_game.TimePassTransitionVisible)
+                return;
+
+            int blackAlpha = (int)Math.Round(_game.TimePassBlackAlpha * 255.0);
+            if (blackAlpha < 0)
+                blackAlpha = 0;
+            if (blackAlpha > 255)
+                blackAlpha = 255;
+
+            using (SolidBrush black = new SolidBrush(Color.FromArgb(blackAlpha, 0, 0, 0)))
+                g.FillRectangle(black, 0, 0, ClientSize.Width, ClientSize.Height);
+
+            double textAlpha01 = _game.TimePassTextAlpha;
+            if (textAlpha01 <= 0)
+                return;
+
+            int textAlpha = (int)Math.Round(textAlpha01 * 245.0);
+            if (textAlpha < 0)
+                textAlpha = 0;
+            if (textAlpha > 245)
+                textAlpha = 245;
+
+            string text = _game.TimePassTransitionText;
+            using (Font font = new Font("Arial", 30, FontStyle.Bold))
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(textAlpha, 235, 235, 235)))
+            {
+                SizeF size = g.MeasureString(text, font);
+                float x = (ClientSize.Width - size.Width) / 2f;
+                float y = (ClientSize.Height - size.Height) / 2f;
+                g.DrawString(text, font, brush, x, y);
+            }
         }
 
         private void DrawCashCounter(Graphics g)
@@ -959,18 +1080,29 @@ namespace игра_для_проги
                 return;
 
             string text = _game.BottomText;
-            bool isClientText = text.StartsWith("Тиа:", StringComparison.OrdinalIgnoreCase);
+            bool isTiaText = text.StartsWith("Тиа:", StringComparison.OrdinalIgnoreCase);
+            bool isMikeText = text.StartsWith("Майк:", StringComparison.OrdinalIgnoreCase);
+            bool isClientText = isTiaText || isMikeText;
             bool isPlayerAnswer =
                 text == "Добрый день! Рады вас видеть в нашем кафе, что бы вы хотели заказать?" ||
                 text == "Ага...Чего желаете?" ||
                 text == "Заказ принят, к оплате будет 300 рублей" ||
-                text == "300р";
+                text == "300р" ||
+                text == "Здравствуйте!" ||
+                text == "Какой кофе вы бы хотели попробовать?" ||
+                text == "Извините, я могу вам чем-то помочь?" ||
+                text == "Д-да... А что?" ||
+                text == "Хорошо... К оплате будет 250р";
             bool isFirstPersonSpeech =
                 text == "Эх... Очередная смена... Очередная неделя без выходных" ||
                 text == "Надо подготовиться к началу смены, убрать и помыть все кружки" ||
                 text == "заправлю кофемашину зернами. где там мешок с кофе..." ||
                 text == "Заправлю кофемашину зернами. где там мешок с кофе..." ||
-                text == "Как же бесят эти выскочки с утра пораньше...";
+                text == "Как же бесят эти выскочки с утра пораньше..." ||
+                text == "Какой-то странный тип" ||
+                text == "Нужно возобновить в памяти рецепт" ||
+                text == "Ладно, пора домой. Надо выключить свет и телевизор, разгребу все завтра" ||
+                text == "Кажется я заработалась... Нужно в ближайшем времени поговорить с начальством по поводу отпуска.";
 
             if (isFirstPersonSpeech)
             {
@@ -1014,9 +1146,13 @@ namespace игра_для_проги
 
                     int y = ClientSize.Height - panelHeight - 74;
                     Rectangle panel = new Rectangle(x, y, panelWidth, panelHeight);
-                    Color borderColor = isClientText
-                        ? Color.FromArgb(190, 236, 128, 178)
-                        : Color.FromArgb(170, 230, 210, 160);
+                    Color borderColor;
+                    if (isMikeText)
+                        borderColor = Color.FromArgb(205, 220, 45, 45);
+                    else if (isTiaText)
+                        borderColor = Color.FromArgb(190, 236, 128, 178);
+                    else
+                        borderColor = Color.FromArgb(170, 230, 210, 160);
 
                     DrawChoiceStylePanel(g, panel, borderColor);
                     RectangleF textRect = new RectangleF(panel.X + 24, panel.Y + 16, panel.Width - 48, panel.Height - 24);
@@ -1120,6 +1256,144 @@ namespace игра_для_проги
             }
         }
 
+        private void DrawHeldBigGlass(Graphics g)
+        {
+            if (_game == null || !_game.HeldBigGlassVisible)
+                return;
+
+            int cupWidth = Math.Max(92, ClientSize.Width / 12);
+            int cupHeight = Math.Max(142, ClientSize.Height / 4);
+            int centerX = ClientSize.Width - cupWidth / 2 - 78;
+            int bottomY = ClientSize.Height - 18;
+            int topY = bottomY - cupHeight;
+
+            DrawBigGlassCup2D(g, centerX, topY, bottomY, cupWidth, _game.CoffeePortionsInCup, 0, false, _game.BigGlassHasIce);
+        }
+
+        private void DrawBigGlassCup2D(Graphics g, int centerX, int topY, int bottomY, int cupWidth, int coffeePortions, double brewingProgress, bool underMachine, bool iceAdded)
+        {
+            int cupHeight = bottomY - topY;
+            int topHalf = cupWidth / 2;
+            int bottomHalf = Math.Max(30, cupWidth / 3);
+            int bodyTopY = topY + 8;
+            int bodyBottomY = bottomY - 12;
+            int leftTopX = centerX - topHalf;
+            int rightTopX = centerX + topHalf;
+            int leftBottomX = centerX - bottomHalf;
+            int rightBottomX = centerX + bottomHalf;
+
+            Func<int, int> leftAtY = currentY => leftTopX + (leftBottomX - leftTopX) * (currentY - bodyTopY) / Math.Max(1, bodyBottomY - bodyTopY);
+            Func<int, int> rightAtY = currentY => rightTopX + (rightBottomX - rightTopX) * (currentY - bodyTopY) / Math.Max(1, bodyBottomY - bodyTopY);
+
+            Point[] body = new Point[]
+            {
+                new Point(leftTopX, bodyTopY),
+                new Point(rightTopX, bodyTopY),
+                new Point(rightBottomX, bodyBottomY),
+                new Point(leftBottomX, bodyBottomY)
+            };
+
+            using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(55, 0, 0, 0)))
+            using (SolidBrush glassBrush = new SolidBrush(Color.FromArgb(92, 226, 238, 244)))
+            using (SolidBrush glassSideBrush = new SolidBrush(Color.FromArgb(82, 190, 210, 218)))
+            using (SolidBrush rimBrush = new SolidBrush(Color.FromArgb(142, 232, 244, 250)))
+            using (SolidBrush coffeeBrush = new SolidBrush(Color.FromArgb(242, 166, 88, 42)))
+            using (SolidBrush iceBrush = new SolidBrush(Color.FromArgb(120, 232, 248, 255)))
+            using (Pen outlinePen = new Pen(Color.FromArgb(210, 28, 34, 38), 4))
+            using (Pen shinePen = new Pen(Color.FromArgb(125, 255, 255, 255), 5))
+            {
+                g.FillEllipse(shadowBrush, centerX - topHalf - 8, bottomY - 12, cupWidth + 16, 10);
+
+                int liquidBottomY = bodyBottomY - 5;
+                double fillFraction = Math.Min(1.0, Math.Max(0.0, (coffeePortions + brewingProgress) / 3.0));
+                if (iceAdded && fillFraction > 0)
+                    fillFraction = Math.Min(0.82, fillFraction + 0.11);
+                int liquidTopY = liquidBottomY - (int)Math.Round((bodyBottomY - bodyTopY - 14) * fillFraction);
+                if (coffeePortions > 0 || brewingProgress > 0)
+                {
+                    Point[] coffeeLayer = new Point[]
+                    {
+                        new Point(leftAtY(liquidTopY), liquidTopY),
+                        new Point(rightAtY(liquidTopY), liquidTopY),
+                        new Point(rightAtY(liquidBottomY), liquidBottomY),
+                        new Point(leftAtY(liquidBottomY), liquidBottomY)
+                    };
+                    g.FillPolygon(coffeeBrush, coffeeLayer);
+                }
+
+                if (iceAdded)
+                {
+                    int safeLeftTop = leftAtY(Math.Max(bodyTopY + 14, liquidTopY + 6)) + 8;
+                    int safeRightTop = rightAtY(Math.Max(bodyTopY + 14, liquidTopY + 6)) - 8;
+                    Rectangle[] iceCubes = new Rectangle[]
+                    {
+                        new Rectangle(Math.Max(safeLeftTop, centerX - cupWidth / 3), Math.Max(bodyTopY + 16, liquidTopY + 6), 28, 24),
+                        new Rectangle(Math.Min(safeRightTop - 22, centerX + cupWidth / 10), Math.Max(bodyTopY + 27, liquidTopY + 16), 30, 25),
+                        new Rectangle(centerX - 12, Math.Min(liquidBottomY - 32, liquidTopY + 42), 32, 26),
+                        new Rectangle(centerX - cupWidth / 4, Math.Min(liquidBottomY - 18, liquidTopY + 66), 28, 24),
+                        new Rectangle(centerX + cupWidth / 9, Math.Min(liquidBottomY - 20, liquidTopY + 76), 29, 25)
+                    };
+
+                    using (Pen icePen = new Pen(Color.FromArgb(96, 174, 205, 220), 2))
+                    {
+                        foreach (Rectangle cube in iceCubes)
+                        {
+                            if (cube.Left <= leftAtY(cube.Top) + 3 || cube.Right >= rightAtY(cube.Top) - 3)
+                                continue;
+                            if (cube.Top <= bodyTopY + 4 || cube.Bottom >= bodyBottomY - 4)
+                                continue;
+
+                            g.FillRectangle(iceBrush, cube);
+                            g.DrawRectangle(icePen, cube);
+                        }
+                    }
+                }
+
+                using (SolidBrush clearOverlay = new SolidBrush(Color.FromArgb(58, 230, 246, 252)))
+                    g.FillPolygon(clearOverlay, body);
+
+                if (iceAdded)
+                {
+                    Rectangle[] visibleIceCubes = new Rectangle[]
+                    {
+                        new Rectangle(centerX - cupWidth / 3, Math.Max(bodyTopY + 16, liquidTopY + 6), 28, 24),
+                        new Rectangle(centerX + cupWidth / 10, Math.Max(bodyTopY + 27, liquidTopY + 16), 30, 25),
+                        new Rectangle(centerX - 12, Math.Min(liquidBottomY - 32, liquidTopY + 42), 32, 26),
+                        new Rectangle(centerX - cupWidth / 4, Math.Min(liquidBottomY - 18, liquidTopY + 66), 28, 24),
+                        new Rectangle(centerX + cupWidth / 9, Math.Min(liquidBottomY - 20, liquidTopY + 76), 29, 25)
+                    };
+
+                    using (Pen visibleIcePen = new Pen(Color.FromArgb(100, 166, 198, 216), 2))
+                    {
+                        foreach (Rectangle cube in visibleIceCubes)
+                        {
+                            if (cube.Left <= leftAtY(cube.Top) + 3 || cube.Right >= rightAtY(cube.Top) - 3)
+                                continue;
+                            if (cube.Top <= bodyTopY + 4 || cube.Bottom >= bodyBottomY - 4)
+                                continue;
+
+                            g.FillRectangle(iceBrush, cube);
+                            g.DrawRectangle(visibleIcePen, cube);
+                        }
+                    }
+                }
+
+                g.DrawPolygon(outlinePen, body);
+                g.FillRectangle(rimBrush, leftTopX - 3, bodyTopY - 4, cupWidth + 6, 8);
+                g.DrawRectangle(outlinePen, leftTopX - 3, bodyTopY - 4, cupWidth + 6, 8);
+                g.FillRectangle(rimBrush, leftBottomX - 2, bodyBottomY - 4, rightBottomX - leftBottomX + 4, 7);
+                g.FillPolygon(glassSideBrush, new Point[]
+                {
+                    new Point(leftTopX + 6, bodyTopY + 10),
+                    new Point(leftTopX + 14, bodyTopY + 10),
+                    new Point(leftBottomX + 10, bodyBottomY - 10),
+                    new Point(leftBottomX + 4, bodyBottomY - 10)
+                });
+                if (underMachine)
+                    g.FillEllipse(shadowBrush, centerX - topHalf + 12, bottomY - 10, cupWidth - 24, 8);
+            }
+        }
+
         private void DrawHeldTakeawayCup(Graphics g)
         {
             if (_game == null)
@@ -1211,7 +1485,7 @@ namespace игра_для_проги
             using (SolidBrush sleeveBrush = new SolidBrush(Color.FromArgb(215, 114, 72, 46)))
             using (SolidBrush bottomBrush = new SolidBrush(Color.FromArgb(240, 214, 204, 192)))
             using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(70, 0, 0, 0)))
-            using (SolidBrush coffeeBrush = new SolidBrush(Color.FromArgb(255, 42, 22, 8)))
+            using (SolidBrush coffeeBrush = new SolidBrush(Color.FromArgb(255, 92, 54, 30)))
             using (SolidBrush milkBrush = new SolidBrush(Color.FromArgb(255, 252, 244, 232)))
             using (SolidBrush syrupBrush = new SolidBrush(Color.FromArgb(255, 236, 12, 120)))
             using (Pen outlinePen = new Pen(Color.FromArgb(225, 42, 36, 32), 4))
@@ -1267,6 +1541,18 @@ namespace игра_для_проги
                 }
 
                 g.FillPolygon(bodyBrush, body);
+                if (coffeeHeight > 0)
+                {
+                    Point[] visibleCoffeeLayer = new Point[]
+                    {
+                        new Point(leftAtY(coffeeTopY), coffeeTopY),
+                        new Point(rightAtY(coffeeTopY), coffeeTopY),
+                        new Point(rightAtY(liquidBottomY), liquidBottomY),
+                        new Point(leftAtY(liquidBottomY), liquidBottomY)
+                    };
+                    using (SolidBrush visibleCoffeeBrush = new SolidBrush(Color.FromArgb(255, 92, 54, 30)))
+                        g.FillPolygon(visibleCoffeeBrush, visibleCoffeeLayer);
+                }
                 g.DrawPolygon(outlinePen, body);
 
                 g.FillPolygon(sleeveBrush, sleeve);
@@ -1357,7 +1643,7 @@ namespace игра_для_проги
             using (SolidBrush rimBrush = new SolidBrush(Color.FromArgb(150, 74, 62, 54)))
             using (SolidBrush sleeveFrontBrush = new SolidBrush(Color.FromArgb(226, 114, 72, 46)))
             using (SolidBrush sleeveSideBrush = new SolidBrush(Color.FromArgb(214, 92, 58, 36)))
-            using (SolidBrush coffeeBrush = new SolidBrush(Color.FromArgb(235, 70, 40, 18)))
+            using (SolidBrush coffeeBrush = new SolidBrush(Color.FromArgb(255, 92, 54, 30)))
             using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(70, 0, 0, 0)))
             using (Pen outlinePen = new Pen(Color.FromArgb(225, 42, 36, 32), 3))
             {
@@ -1446,6 +1732,12 @@ namespace игра_для_проги
         {
             if (_game == null || !_game.RecipeOverlayVisible)
                 return;
+
+            if (_game.MikeRecipeActive)
+            {
+                DrawMikeRecipeOverlay(g);
+                return;
+            }
 
             int panelWidth = Math.Min(ClientSize.Width - 240, 980);
             int panelHeight = Math.Min(ClientSize.Height - 170, 610);
@@ -1575,6 +1867,136 @@ namespace игра_для_проги
                 };
                 g.FillPolygon(shineBrush, highlight1);
                 using (SolidBrush shineSoft = new SolidBrush(Color.FromArgb(120, 255, 255, 255)))
+                    g.FillPolygon(shineSoft, highlight2);
+
+                g.DrawString("Нажми E, чтобы закрыть рецепт", closeFont, black, panel.X + 30, panel.Bottom - 44);
+            }
+        }
+
+        private void DrawMikeRecipeOverlay(Graphics g)
+        {
+            int panelWidth = Math.Min(ClientSize.Width - 240, 980);
+            int panelHeight = Math.Min(ClientSize.Height - 170, 610);
+            Rectangle panel = new Rectangle(
+                (ClientSize.Width - panelWidth) / 2,
+                (ClientSize.Height - panelHeight) / 2,
+                panelWidth,
+                panelHeight
+            );
+
+            Rectangle imageArea = new Rectangle(
+                panel.X + 52,
+                panel.Y + 118,
+                246,
+                330
+            );
+
+            using (SolidBrush bg = new SolidBrush(Color.FromArgb(255, 105, 195, 230)))
+            using (Pen border = new Pen(Color.Black, 7))
+            using (Pen cupLinePen = new Pen(Color.Black, 7))
+            using (Font titleFont = new Font("Arial", 26, FontStyle.Bold))
+            using (Font subTitleFont = new Font("Arial", 17, FontStyle.Bold))
+            using (Font ingredientFont = new Font("Arial", 22, FontStyle.Bold))
+            using (Font closeFont = new Font("Arial", 18, FontStyle.Bold))
+            using (SolidBrush black = new SolidBrush(Color.Black))
+            using (SolidBrush glassBrush = new SolidBrush(Color.FromArgb(205, 248, 250, 255)))
+            using (SolidBrush espressoBrush = new SolidBrush(Color.FromArgb(82, 48, 31)))
+            using (SolidBrush espressoLightBrush = new SolidBrush(Color.FromArgb(132, 84, 48)))
+            using (SolidBrush iceBrush = new SolidBrush(Color.FromArgb(220, 242, 252, 255)))
+            using (SolidBrush shineBrush = new SolidBrush(Color.FromArgb(150, 255, 255, 255)))
+            {
+                g.FillRectangle(bg, panel);
+                g.DrawRectangle(border, panel);
+
+                g.DrawString("двойной эспрессо со льдом", titleFont, black, panel.X + 28, panel.Y + 20);
+                g.DrawString("рецепт заказа", subTitleFont, black, panel.X + 32, panel.Y + 76);
+
+                float ingredientsX = imageArea.Right + 72;
+                float ingredientsY = panel.Y + 144;
+                g.DrawString("ингредиенты:", ingredientFont, black, ingredientsX, ingredientsY);
+                g.DrawString("эспрессо x 2", ingredientFont, black, ingredientsX, ingredientsY + 64);
+                g.DrawString("лед", ingredientFont, black, ingredientsX, ingredientsY + 118);
+
+                int glassTopY = imageArea.Y + 45;
+                int glassBottomY = imageArea.Bottom - 28;
+                int glassLeftTop = imageArea.X + 62;
+                int glassRightTop = imageArea.Right - 62;
+                int glassLeftBottom = imageArea.X + 82;
+                int glassRightBottom = imageArea.Right - 82;
+
+                Point[] glass = new Point[]
+                {
+                    new Point(glassLeftTop, glassTopY),
+                    new Point(glassRightTop, glassTopY),
+                    new Point(glassRightBottom, glassBottomY),
+                    new Point(glassLeftBottom, glassBottomY)
+                };
+
+                g.FillPolygon(glassBrush, glass);
+                g.DrawPolygon(cupLinePen, glass);
+
+                int liquidTop = glassTopY + 62;
+                int liquidBottom = glassBottomY - 14;
+
+                Func<int, int> leftAtY = currentY =>
+                    glassLeftTop + (glassLeftBottom - glassLeftTop) * (currentY - glassTopY) / (glassBottomY - glassTopY);
+                Func<int, int> rightAtY = currentY =>
+                    glassRightTop + (glassRightBottom - glassRightTop) * (currentY - glassTopY) / (glassBottomY - glassTopY);
+
+                Point[] espresso = new Point[]
+                {
+                    new Point(leftAtY(liquidTop), liquidTop),
+                    new Point(rightAtY(liquidTop), liquidTop),
+                    new Point(rightAtY(liquidBottom), liquidBottom),
+                    new Point(leftAtY(liquidBottom), liquidBottom)
+                };
+                g.FillPolygon(espressoBrush, espresso);
+
+                int foamY = liquidTop;
+                Point[] topLayer = new Point[]
+                {
+                    new Point(leftAtY(foamY), foamY),
+                    new Point(rightAtY(foamY), foamY),
+                    new Point(rightAtY(foamY + 22), foamY + 22),
+                    new Point(leftAtY(foamY + 22), foamY + 22)
+                };
+                g.FillPolygon(espressoLightBrush, topLayer);
+
+                Rectangle[] iceCubes = new Rectangle[]
+                {
+                    new Rectangle(imageArea.X + 94, imageArea.Y + 82, 32, 30),
+                    new Rectangle(imageArea.X + 132, imageArea.Y + 88, 30, 28),
+                    new Rectangle(imageArea.X + 105, imageArea.Y + 138, 34, 32),
+                    new Rectangle(imageArea.X + 140, imageArea.Y + 160, 30, 28),
+                    new Rectangle(imageArea.X + 96, imageArea.Y + 214, 30, 28),
+                    new Rectangle(imageArea.X + 130, imageArea.Y + 228, 32, 30)
+                };
+
+                using (Pen icePen = new Pen(Color.FromArgb(170, 190, 215, 230), 3))
+                {
+                    foreach (Rectangle cube in iceCubes)
+                    {
+                        g.FillRectangle(iceBrush, cube);
+                        g.DrawRectangle(icePen, cube);
+                    }
+                }
+
+                Point[] highlight1 = new Point[]
+                {
+                    new Point(glassLeftTop + 14, glassTopY + 18),
+                    new Point(glassLeftTop + 28, glassTopY + 18),
+                    new Point(glassLeftBottom + 20, glassBottomY - 22),
+                    new Point(glassLeftBottom + 7, glassBottomY - 22)
+                };
+                Point[] highlight2 = new Point[]
+                {
+                    new Point(glassRightTop - 30, glassTopY + 32),
+                    new Point(glassRightTop - 20, glassTopY + 32),
+                    new Point(glassRightBottom - 20, glassBottomY - 38),
+                    new Point(glassRightBottom - 31, glassBottomY - 38)
+                };
+                g.FillPolygon(shineBrush, highlight1);
+                using (SolidBrush shineSoft = new SolidBrush(Color.FromArgb(110, 255, 255, 255)))
                     g.FillPolygon(shineSoft, highlight2);
 
                 g.DrawString("Нажми E, чтобы закрыть рецепт", closeFont, black, panel.X + 30, panel.Bottom - 44);

@@ -12,6 +12,7 @@ namespace игра_для_проги.Controller
         private CachedLoopSampleProvider _musicLoopProvider;
         private string _musicPath;
         private readonly Dictionary<string, LoopingSound> _loopingSounds = new Dictionary<string, LoopingSound>();
+        private readonly Dictionary<string, float> _loopingSoundMultipliers = new Dictionary<string, float>();
         private readonly List<OneShotSound> _activeOneShotSounds = new List<OneShotSound>();
         private float _musicVolume = 0.35f;
         private float _soundVolume = 0.85f;
@@ -31,7 +32,11 @@ namespace игра_для_проги.Controller
         public float SoundVolume
         {
             get { return _soundVolume; }
-            set { _soundVolume = Clamp01(value); }
+            set
+            {
+                _soundVolume = Clamp01(value);
+                UpdateLoopingSoundVolumes();
+            }
         }
 
         public void PlayMusicLoop(string path)
@@ -180,9 +185,12 @@ namespace игра_для_проги.Controller
             if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return;
 
+            _loopingSoundMultipliers[key] = volumeMultiplier;
+
             LoopingSound existingSound;
             if (_loopingSounds.TryGetValue(key, out existingSound))
             {
+                existingSound.SetVolume(Clamp01(_soundVolume * volumeMultiplier));
                 existingSound.KeepAlive();
                 return;
             }
@@ -214,6 +222,33 @@ namespace игра_для_проги.Controller
 
             sound.Dispose();
             _loopingSounds.Remove(key);
+            _loopingSoundMultipliers.Remove(key);
+        }
+
+        public void SetLoopingSoundVolume(string key, float volumeMultiplier)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            _loopingSoundMultipliers[key] = volumeMultiplier;
+
+            LoopingSound sound;
+            if (!_loopingSounds.TryGetValue(key, out sound))
+                return;
+
+            sound.SetVolume(Clamp01(_soundVolume * volumeMultiplier));
+        }
+
+        private void UpdateLoopingSoundVolumes()
+        {
+            foreach (KeyValuePair<string, LoopingSound> pair in _loopingSounds)
+            {
+                float multiplier = 1.0f;
+                if (_loopingSoundMultipliers.ContainsKey(pair.Key))
+                    multiplier = _loopingSoundMultipliers[pair.Key];
+
+                pair.Value.SetVolume(Clamp01(_soundVolume * multiplier));
+            }
         }
 
         public void StopMusic()
@@ -238,6 +273,7 @@ namespace игра_для_проги.Controller
                 sound.Dispose();
 
             _loopingSounds.Clear();
+            _loopingSoundMultipliers.Clear();
 
             foreach (OneShotSound sound in _activeOneShotSounds.ToArray())
                 sound.Dispose();
@@ -250,8 +286,8 @@ namespace игра_для_проги.Controller
             if (value < 0f)
                 return 0f;
 
-            if (value > 1f)
-                return 1f;
+            if (value > 2f)
+                return 2f;
 
             return value;
         }
@@ -397,6 +433,14 @@ namespace игра_для_проги.Controller
                 catch
                 {
                 }
+            }
+
+            public void SetVolume(float volume)
+            {
+                if (_disposed || _loopProvider == null)
+                    return;
+
+                _loopProvider.Volume = volume;
             }
 
             public void Dispose()
