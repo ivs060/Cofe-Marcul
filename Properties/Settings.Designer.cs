@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace игра_для_проги.Properties
+namespace CafeMarkul.Properties
 {
 
 

@@ -1,7 +1,7 @@
 ﻿using System;
-using игра_для_проги.Model;
+using CafeMarkul.Model;
 
-namespace игра_для_проги.Model
+namespace CafeMarkul.Model
 {
     public class Edge
     {

@@ -5,11 +5,11 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows.Forms;
-using игра_для_проги.Controller;
-using игра_для_проги.Model;
-using игра_для_проги.View;
+using CafeMarkul.Controller;
+using CafeMarkul.Model;
+using CafeMarkul.View;
 
-namespace игра_для_проги
+namespace CafeMarkul
 {
     public partial class Form1 : Form
     {
@@ -82,6 +82,7 @@ namespace игра_для_проги
         public Form1()
         {
             InitializeComponent();
+            Text = "Cafe Markul";
 
             KeyPreview = true;
             DoubleBuffered = true;

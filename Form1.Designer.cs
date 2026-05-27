@@ -1,4 +1,4 @@
-﻿namespace игра_для_проги
+﻿namespace CafeMarkul
 {
     partial class Form1
     {

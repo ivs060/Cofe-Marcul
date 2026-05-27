@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace игра_для_проги
+namespace CafeMarkul
 {
     internal static class Program
     {

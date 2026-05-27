@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using игра_для_проги.Model;
+using CafeMarkul.Model;
 
-namespace игра_для_проги.Controller
+namespace CafeMarkul.Controller
 {
     public class GameObjective
     {

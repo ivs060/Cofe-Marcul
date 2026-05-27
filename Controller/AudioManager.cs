@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using NAudio.Wave;
 
-namespace игра_для_проги.Controller
+namespace CafeMarkul.Controller
 {
     public class AudioManager : IDisposable
     {

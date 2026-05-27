@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using игра_для_проги.Model;
+using CafeMarkul.Model;
 
-namespace игра_для_проги.Controller
+namespace CafeMarkul.Controller
 {
     /// <summary>
     /// Собирает сцену кофейни, управляет камерой и проверяет столкновения.

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace игра_для_проги.Model
+namespace CafeMarkul.Model
 {
     public class Point3D
     {

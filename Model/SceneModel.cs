@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 
-namespace игра_для_проги.Model
+namespace CafeMarkul.Model
 {
     public enum FaceLayer
     {
