@@ -129,6 +129,18 @@ namespace игра_для_проги.Controller
         // Экран кассы с заказом появляется после финальной фразы по заказу Тии.
         private readonly List<int> _cashRecipeScreenPoints = new List<int>();
         private readonly List<double> _cashRecipeScreenBaseY = new List<double>();
+        private readonly List<int> _cashRecipeLattePoints = new List<int>();
+        private readonly List<double> _cashRecipeLatteBaseY = new List<double>();
+        private readonly List<int> _cashRecipeEspressoPoints = new List<int>();
+        private readonly List<double> _cashRecipeEspressoBaseY = new List<double>();
+        private readonly List<int> _fridgeInteriorPoints = new List<int>();
+        private readonly List<double> _fridgeInteriorBaseY = new List<double>();
+        private readonly List<int> _fridgeMilkPackPoints = new List<int>();
+        private readonly List<double> _fridgeMilkPackBaseY = new List<double>();
+        private readonly List<int> _fridgeDoorPoints = new List<int>();
+        private readonly List<double> _fridgeDoorBaseX = new List<double>();
+        private readonly List<double> _fridgeDoorBaseY = new List<double>();
+        private readonly List<double> _fridgeDoorBaseZ = new List<double>();
 
         // 3D-клиентка собрана как одна управляемая группа точек.
         // Это позволяет скрывать её, перемещать по сцене и поворачивать.
@@ -367,6 +379,15 @@ namespace игра_для_проги.Controller
             _tiaServedCupBaseY.Clear();
             _tiaPaymentBillPoints.Clear();
             _tiaPaymentBillBaseY.Clear();
+            _tiaHoldingCupPoints.Clear();
+            _tiaHoldingCupLocalX.Clear();
+            _tiaHoldingCupLocalY.Clear();
+            _tiaHoldingCupLocalZ.Clear();
+            _tiaBentArmPoints.Clear();
+            _tiaBentArmLocalX.Clear();
+            _tiaBentArmLocalY.Clear();
+            _tiaBentArmLocalZ.Clear();
+            _tiaHoldingCupVisible = false;
             _mikeServedGlassPoints.Clear();
             _mikeServedGlassBaseY.Clear();
             _mikePaymentBillPoints.Clear();
@@ -440,6 +461,18 @@ namespace игра_для_проги.Controller
 
             _cashRecipeScreenPoints.Clear();
             _cashRecipeScreenBaseY.Clear();
+            _cashRecipeLattePoints.Clear();
+            _cashRecipeLatteBaseY.Clear();
+            _cashRecipeEspressoPoints.Clear();
+            _cashRecipeEspressoBaseY.Clear();
+            _fridgeInteriorPoints.Clear();
+            _fridgeInteriorBaseY.Clear();
+            _fridgeMilkPackPoints.Clear();
+            _fridgeMilkPackBaseY.Clear();
+            _fridgeDoorPoints.Clear();
+            _fridgeDoorBaseX.Clear();
+            _fridgeDoorBaseY.Clear();
+            _fridgeDoorBaseZ.Clear();
             _clientPoints.Clear();
             _clientLocalX.Clear();
             _clientLocalY.Clear();
@@ -890,31 +923,30 @@ namespace игра_для_проги.Controller
             Color body = Color.FromArgb(128, 134, 138);
             Color sideDark = Color.FromArgb(92, 98, 102);
             Color panelLight = Color.FromArgb(148, 152, 154);
-            Color panelDark = Color.FromArgb(104, 110, 114);
             Color rubber = Color.FromArgb(48, 52, 54);
             Color dirt = Color.FromArgb(88, 82, 74);
 
-            AddBlock(-295, -100, 510, -250, 80, 595, null, body, FaceLayer.Furniture);
+            // Холодильник теперь собран как открытая коробка, а не как цельный закрытый куб.
+            // Раньше цельный корпус давал переднюю грань прямо за дверцей и перед внутренностями,
+            // из-за чего при движении камеры начиналось наложение плоскостей и мерцание.
+            // Здесь нет копланарной передней стенки: есть только задник, боковые стенки, верх/низ и толстая дверца.
+            AddBlock(-295, -100, 510, -291.5, 80, 595, null, sideDark, FaceLayer.Furniture); // задняя стенка
+            AddBlock(-295, -100, 510, -250, 80, 514.0, null, body, FaceLayer.Furniture);      // левая боковина
+            AddBlock(-295, -100, 591.0, -250, 80, 595, null, body, FaceLayer.Furniture);      // правая боковина/петля
+            AddBlock(-295, 76, 510, -250, 80, 595, null, panelLight, FaceLayer.Furniture);     // верх
+            AddBlock(-295, -100, 510, -250, -96, 595, null, sideDark, FaceLayer.Furniture);    // низ
 
-            AddRectOnXPlane(-249.75, -96, 514, 76, 591, sideDark, FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.55, -94, 516, 76, 589, panelLight, FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.48, 22, 520, 72, 585, Color.FromArgb(138, 142, 144), FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.47, -90, 520, 18, 585, Color.FromArgb(132, 136, 138), FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.40, 18, 520, 21, 585, rubber, FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.38, -90, 522, -84, 583, panelDark, FaceLayer.WallDetail);
+            // Аккуратная рамка вокруг проёма. Она слегка утоплена и не спорит с дверцей по глубине.
+            AddBlock(-252.6, -95, 514.8, -249.9, 75, 518.2, null, rubber, FaceLayer.Furniture);
+            AddBlock(-252.6, -95, 586.8, -249.9, 75, 590.2, null, rubber, FaceLayer.Furniture);
+            AddBlock(-252.6, 70.8, 518.2, -249.9, 75, 586.8, null, rubber, FaceLayer.Furniture);
+            AddBlock(-252.6, -95, 518.2, -249.9, -90.8, 586.8, null, rubber, FaceLayer.Furniture);
 
-            for (int i = 0; i < 4; i++)
-            {
-                double z1 = 530 + i * 11;
-                AddRectOnXPlane(-249.32, -89, z1, -85, z1 + 5, rubber, FaceLayer.WallDetail);
-            }
+            AddOpenableFridgeDetails();
 
-            AddFridgeHandle();
-            AddMilkCartonOnFridge();
-
-            AddRectOnXPlane(-249.25, -27, 542, 58, 545, Color.FromArgb(74, 78, 80), FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.20, 48, 526, 56, 540, dirt, FaceLayer.WallDetail);
-            AddRectOnXPlane(-249.20, -38, 560, -30, 575, Color.FromArgb(96, 90, 82), FaceLayer.WallDetail);
+            // Немного грязи только на внешнем корпусе сбоку, не на дверце и не на молоке.
+            AddRectOnZPlane(-286, 48, -266, 58, 510.35, dirt, FaceLayer.WallDetail);
+            AddRectOnZPlane(-286, -42, -270, -34, 510.36, Color.FromArgb(96, 90, 82), FaceLayer.WallDetail);
         }
 
         private void AddFridgeHandle()
@@ -971,6 +1003,95 @@ namespace игра_для_проги.Controller
             AddRectOnXPlane(xPlane + 0.08, yTop - 0.9, zLeft, yTop, zRight, outline, FaceLayer.SmallDetail);
             AddRectOnXPlane(xPlane + 0.08, yBottom, zLeft, yTop, zLeft + 0.9, outline, FaceLayer.SmallDetail);
             AddRectOnXPlane(xPlane + 0.08, yBottom, zRight - 0.9, yTop, zRight, outline, FaceLayer.SmallDetail);
+        }
+
+        private void AddOpenableFridgeDetails()
+        {
+            double xBack = -291.0;
+            double xFront = -253.8;
+            double yBottom = -91.0;
+            double yTop = 69.0;
+            double zLeft = 519.0;
+            double zRight = 586.0;
+
+            Color inside = Color.FromArgb(206, 214, 216);
+            Color insideLight = Color.FromArgb(232, 236, 236);
+            Color insideDark = Color.FromArgb(88, 102, 106);
+            Color shelf = Color.FromArgb(226, 232, 232);
+            Color shelfEdge = Color.FromArgb(154, 168, 172);
+            Color milkWhite = Color.FromArgb(250, 248, 238);
+            Color milkBlue = Color.FromArgb(78, 150, 224);
+            Color milkCap = Color.FromArgb(218, 86, 120);
+
+            int interiorStart = _model.Points.Count;
+            // Внутренности разнесены по координатам: нет двух одинаковых плоскостей на одном x/z/y.
+            AddBlock(xBack, yBottom, zLeft, xBack + 2.4, yTop, zRight, null, insideDark, FaceLayer.Furniture);
+            AddBlock(xBack + 2.5, yBottom, zLeft, xFront - 1.2, yTop, zLeft + 2.7, null, inside, FaceLayer.Furniture);
+            AddBlock(xBack + 2.5, yBottom, zRight - 2.7, xFront - 1.2, yTop, zRight, null, inside, FaceLayer.Furniture);
+            AddBlock(xBack + 2.5, yTop - 3.0, zLeft + 2.7, xFront - 1.2, yTop, zRight - 2.7, null, insideLight, FaceLayer.Furniture);
+            AddBlock(xBack + 2.5, yBottom, zLeft + 2.7, xFront - 1.2, yBottom + 3.2, zRight - 2.7, null, insideDark, FaceLayer.Furniture);
+
+            // Нижняя полка пустая, верхняя держит молоко. Полки толстые и не лежат в одной плоскости со стенками.
+            AddBlock(xBack + 7.0, -24.0, zLeft + 6.0, xFront - 3.0, -18.2, zRight - 6.0, null, shelf, FaceLayer.Furniture);
+            AddBlock(xBack + 7.0, 24.0, zLeft + 6.0, xFront - 3.0, 29.8, zRight - 6.0, null, shelf, FaceLayer.Furniture);
+            AddBlock(xFront - 5.2, -24.4, zLeft + 6.0, xFront - 2.1, -17.2, zRight - 6.0, null, shelfEdge, FaceLayer.Furniture);
+            AddBlock(xFront - 5.2, 23.6, zLeft + 6.0, xFront - 2.1, 30.8, zRight - 6.0, null, shelfEdge, FaceLayer.Furniture);
+            AddBlock(xBack + 6.6, -25.0, zLeft + 6.2, xBack + 9.0, -17.4, zLeft + 10.0, null, shelfEdge, FaceLayer.Furniture);
+            AddBlock(xBack + 6.6, -25.0, zRight - 10.0, xBack + 9.0, -17.4, zRight - 6.2, null, shelfEdge, FaceLayer.Furniture);
+            AddBlock(xBack + 6.6, 23.0, zLeft + 6.2, xBack + 9.0, 30.6, zLeft + 10.0, null, shelfEdge, FaceLayer.Furniture);
+            AddBlock(xBack + 6.6, 23.0, zRight - 10.0, xBack + 9.0, 30.6, zRight - 6.2, null, shelfEdge, FaceLayer.Furniture);
+            AddPointRangeToGroup(interiorStart, _model.Points.Count, _fridgeInteriorPoints, _fridgeInteriorBaseY);
+
+            int milkStart = _model.Points.Count;
+            // Три пакета стоят НА ВЕРХНЕЙ полке, глубоко внутри холодильника, а не на дверце.
+            AddFridgeMilkPack(-283.8, 31.0, 524.0, milkWhite, milkBlue, milkCap);
+            AddFridgeMilkPack(-283.8, 31.0, 546.0, milkWhite, Color.FromArgb(96, 166, 224), milkCap);
+            AddFridgeMilkPack(-283.8, 31.0, 568.0, milkWhite, milkBlue, milkCap);
+            AddPointRangeToGroup(milkStart, _model.Points.Count, _fridgeMilkPackPoints, _fridgeMilkPackBaseY);
+
+            int doorStart = _model.Points.Count;
+            // Толстая единая дверца с ручкой внутри одной группы: ручка всегда вращается вместе с дверью.
+            AddBlock(-249.8, -94, 510.6, -242.8, 74, 593.4, null, Color.FromArgb(152, 158, 160), FaceLayer.Furniture);
+            AddBlock(-249.3, -90, 515.2, -248.5, 70, 588.8, null, Color.FromArgb(136, 142, 144), FaceLayer.SmallDetail);
+            AddBlock(-248.1, -56, 522.0, -244.6, 46, 527.8, null, HorrorColor.ColdSteel, FaceLayer.SmallDetail);
+            AddBlock(-244.8, -52, 526.8, -243.6, 42, 528.4, null, HorrorColor.SteelDark, FaceLayer.SmallDetail);
+            AddPointRangeToFridgeDoorGroup(doorStart, _model.Points.Count);
+
+            SetFridgeOpenAnimation(false, 0.0);
+        }
+
+        private void AddFridgeMilkPack(double x, double y, double z, Color body, Color label, Color cap)
+        {
+            // Крупный объёмный пакет без наклеенных копланарных "картинок".
+            // Декор сделан тонкими, но отдельными блоками, вынесенными вперёд по z.
+            double x1 = x;
+            double x2 = x + 15.2;
+            double y1 = y;
+            double y2 = y + 23.0;
+            double z1 = z;
+            double z2 = z + 13.2;
+            AddBlock(x1, y1, z1, x2, y2, z2, null, body, FaceLayer.Furniture);
+            AddBlock(x1 + 1.7, y2, z1 + 1.3, x2 - 1.7, y2 + 4.4, z2 - 1.3, null, Color.FromArgb(252, 250, 246), FaceLayer.Furniture);
+            AddBlock(x1 + 2.3, y1 + 4.0, z2 + 0.35, x2 - 2.3, y1 + 11.4, z2 + 1.25, null, label, FaceLayer.SmallDetail);
+            AddBlock(x1 + 2.8, y1 + 14.5, z2 + 0.35, x2 - 2.8, y1 + 17.8, z2 + 1.25, null, Color.FromArgb(236, 236, 226), FaceLayer.SmallDetail);
+            AddBlock(x2 - 5.3, y2 + 2.8, z2 - 3.8, x2 - 2.3, y2 + 5.7, z2 - 1.1, null, cap, FaceLayer.SmallDetail);
+            AddBlock(x1, y1, z1, x1 + 1.1, y2, z2, null, Color.FromArgb(214, 214, 206), FaceLayer.Furniture);
+            AddBlock(x1, y1, z1, x2, y1 + 1.1, z2, null, Color.FromArgb(192, 196, 196), FaceLayer.Furniture);
+        }
+
+        private void AddPointRangeToFridgeDoorGroup(int startIndex, int endIndex)
+        {
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                if (i < 0 || i >= _model.Points.Count)
+                    continue;
+
+                Point3D point = _model.Points[i];
+                _fridgeDoorPoints.Add(i);
+                _fridgeDoorBaseX.Add(point.X);
+                _fridgeDoorBaseY.Add(point.Y);
+                _fridgeDoorBaseZ.Add(point.Z);
+            }
         }
 
         private void AddCoffeeMachineWallCounter()
@@ -1544,6 +1665,7 @@ namespace игра_для_проги.Controller
             AddQuad(x + 32.1, y + 42.2, screenZ + 0.02, x + 47.9, y + 42.2, screenZ + 0.02, x + 47.9, y + 42.9, screenZ + 0.02, x + 32.1, y + 42.9, screenZ + 0.02, null, blueLight, FaceLayer.SmallDetail);
             AddQuad(x + 32.1, y + 34.1, screenZ + 0.02, x + 47.9, y + 34.1, screenZ + 0.02, x + 47.9, y + 34.7, screenZ + 0.02, x + 32.1, y + 34.7, screenZ + 0.02, null, blueDark, FaceLayer.SmallDetail);
 
+            int espressoStart = _model.Points.Count;
             // Экран кассы показывает двойной эспрессо со льдом, повернутый на 180 градусов.
             AddQuad(x + 42.30, y + 41.45, screenZ + 0.08, x + 37.70, y + 41.45, screenZ + 0.08, x + 38.14, y + 35.10, screenZ + 0.08, x + 41.86, y + 35.10, screenZ + 0.08, null, glass, FaceLayer.SmallDetail);
             AddQuad(x + 42.46, y + 41.55, screenZ + 0.09, x + 37.54, y + 41.55, screenZ + 0.09, x + 37.54, y + 41.10, screenZ + 0.09, x + 42.46, y + 41.10, screenZ + 0.09, null, outline, FaceLayer.SmallDetail);
@@ -1558,6 +1680,44 @@ namespace игра_для_проги.Controller
 
             AddQuad(x + 41.66, y + 41.10, screenZ + 0.15, x + 41.40, y + 41.10, screenZ + 0.15, x + 41.54, y + 35.53, screenZ + 0.15, x + 41.80, y + 35.53, screenZ + 0.15, null, shine, FaceLayer.SmallDetail);
             AddQuad(x + 38.62, y + 40.51, screenZ + 0.15, x + 38.42, y + 40.51, screenZ + 0.15, x + 38.62, y + 36.09, screenZ + 0.15, x + 38.82, y + 36.09, screenZ + 0.15, null, shine, FaceLayer.SmallDetail);
+            AddPointRangeToGroup(espressoStart, _model.Points.Count, _cashRecipeEspressoPoints, _cashRecipeEspressoBaseY);
+
+            int latteStart = _model.Points.Count;
+            // Малиновый латте для Тии: тот же крупный силуэт стакана на экране кассы,
+            // но состав другой — кофе, молоко, малиновый сироп и светлая пенка без льда.
+            Color milkLayer = Color.FromArgb(246, 232, 210);
+            Color milkLayerWarm = Color.FromArgb(236, 206, 178);
+            Color raspberry = Color.FromArgb(222, 66, 122);
+            Color raspberryDark = Color.FromArgb(150, 26, 72);
+            Color milkFoam = Color.FromArgb(252, 240, 226);
+            Color foamShadow = Color.FromArgb(226, 204, 184);
+            Color creamHighlight = Color.FromArgb(255, 250, 238);
+
+            AddQuad(x + 42.30, y + 41.45, screenZ + 0.20, x + 37.70, y + 41.45, screenZ + 0.20, x + 38.14, y + 35.10, screenZ + 0.20, x + 41.86, y + 35.10, screenZ + 0.20, null, glass, FaceLayer.SmallDetail);
+            AddQuad(x + 42.46, y + 41.55, screenZ + 0.21, x + 37.54, y + 41.55, screenZ + 0.21, x + 37.54, y + 41.10, screenZ + 0.21, x + 42.46, y + 41.10, screenZ + 0.21, null, outline, FaceLayer.SmallDetail);
+
+            // Нижний кофейный слой.
+            AddQuad(x + 41.92, y + 37.15, screenZ + 0.22, x + 38.08, y + 37.15, screenZ + 0.22, x + 38.26, y + 35.36, screenZ + 0.22, x + 41.74, y + 35.36, screenZ + 0.22, null, espresso, FaceLayer.SmallDetail);
+            AddQuad(x + 41.78, y + 37.14, screenZ + 0.23, x + 38.22, y + 37.14, screenZ + 0.23, x + 38.30, y + 36.68, screenZ + 0.23, x + 41.70, y + 36.68, screenZ + 0.23, null, espressoLight, FaceLayer.SmallDetail);
+
+            // Большой молочный слой — основной объём латте.
+            AddQuad(x + 41.98, y + 39.35, screenZ + 0.24, x + 38.02, y + 39.35, screenZ + 0.24, x + 38.10, y + 37.08, screenZ + 0.24, x + 41.90, y + 37.08, screenZ + 0.24, null, milkLayer, FaceLayer.SmallDetail);
+            AddQuad(x + 41.76, y + 38.58, screenZ + 0.25, x + 38.24, y + 38.58, screenZ + 0.25, x + 38.28, y + 37.62, screenZ + 0.25, x + 41.72, y + 37.62, screenZ + 0.25, null, milkLayerWarm, FaceLayer.SmallDetail);
+
+            // Малиновый сироп — заметная полоса ближе к верху, как в игровом стакане.
+            AddQuad(x + 41.94, y + 39.94, screenZ + 0.26, x + 38.06, y + 39.94, screenZ + 0.26, x + 38.02, y + 39.16, screenZ + 0.26, x + 41.98, y + 39.16, screenZ + 0.26, null, raspberry, FaceLayer.SmallDetail);
+            AddQuad(x + 41.54, y + 39.60, screenZ + 0.27, x + 40.84, y + 39.60, screenZ + 0.27, x + 40.90, y + 37.24, screenZ + 0.27, x + 41.60, y + 37.24, screenZ + 0.27, null, raspberryDark, FaceLayer.SmallDetail);
+            AddQuad(x + 39.16, y + 39.56, screenZ + 0.27, x + 38.46, y + 39.56, screenZ + 0.27, x + 38.54, y + 37.44, screenZ + 0.27, x + 39.22, y + 37.44, screenZ + 0.27, null, raspberryDark, FaceLayer.SmallDetail);
+
+            // Верхний молочный слой и лёгкая пенка.
+            AddQuad(x + 41.74, y + 40.84, screenZ + 0.28, x + 38.26, y + 40.84, screenZ + 0.28, x + 38.20, y + 39.92, screenZ + 0.28, x + 41.80, y + 39.92, screenZ + 0.28, null, milkFoam, FaceLayer.SmallDetail);
+            AddQuad(x + 41.22, y + 40.54, screenZ + 0.29, x + 38.78, y + 40.54, screenZ + 0.29, x + 39.02, y + 40.18, screenZ + 0.29, x + 40.98, y + 40.18, screenZ + 0.29, null, foamShadow, FaceLayer.SmallDetail);
+            AddQuad(x + 40.64, y + 40.70, screenZ + 0.30, x + 39.36, y + 40.70, screenZ + 0.30, x + 39.52, y + 40.34, screenZ + 0.30, x + 40.48, y + 40.34, screenZ + 0.30, null, creamHighlight, FaceLayer.SmallDetail);
+            AddQuad(x + 40.46, y + 40.36, screenZ + 0.31, x + 39.54, y + 40.36, screenZ + 0.31, x + 39.62, y + 40.10, screenZ + 0.31, x + 40.38, y + 40.10, screenZ + 0.31, null, raspberry, FaceLayer.SmallDetail);
+
+            AddQuad(x + 41.66, y + 41.10, screenZ + 0.32, x + 41.40, y + 41.10, screenZ + 0.32, x + 41.54, y + 35.53, screenZ + 0.32, x + 41.80, y + 35.53, screenZ + 0.32, null, shine, FaceLayer.SmallDetail);
+            AddQuad(x + 38.62, y + 40.51, screenZ + 0.32, x + 38.42, y + 40.51, screenZ + 0.32, x + 38.62, y + 36.09, screenZ + 0.32, x + 38.82, y + 36.09, screenZ + 0.32, null, shine, FaceLayer.SmallDetail);
+            AddPointRangeToGroup(latteStart, _model.Points.Count, _cashRecipeLattePoints, _cashRecipeLatteBaseY);
 
             AddPointRangeToGroup(startIndex, _model.Points.Count, _cashRecipeScreenPoints, _cashRecipeScreenBaseY);
         }
@@ -2639,7 +2799,9 @@ namespace игра_для_проги.Controller
                 if (index < 0 || index >= _model.Points.Count || i >= baseY.Count)
                     continue;
 
-                _model.Points[index].Y = baseY[i] + offsetY;
+                double targetY = baseY[i] + offsetY;
+                if (Math.Abs(_model.Points[index].Y - targetY) > 0.0001)
+                    _model.Points[index].Y = targetY;
             }
         }
 
@@ -2651,7 +2813,9 @@ namespace игра_для_проги.Controller
                 if (index < 0 || index >= _model.Points.Count || i >= baseY.Count)
                     continue;
 
-                _model.Points[index].Y = baseY[i] + offsetY;
+                double targetY = baseY[i] + offsetY;
+                if (Math.Abs(_model.Points[index].Y - targetY) > 0.0001)
+                    _model.Points[index].Y = targetY;
             }
         }
 
@@ -3071,7 +3235,11 @@ namespace игра_для_проги.Controller
         public void SetTiaHoldingCupVisible(bool visible)
         {
             _tiaHoldingCupVisible = visible;
+            if (!visible)
+                HideTiaHoldingCupAttachmentPoints();
             ApplyClientTransform();
+            if (!visible)
+                HideTiaHoldingCupAttachmentPoints();
             _model.NotifyChanged();
         }
 
@@ -3085,6 +3253,45 @@ namespace игра_для_проги.Controller
         public void SetCashRecipeScreenVisible(bool visible)
         {
             MovePointGroupByY(_cashRecipeScreenPoints, _cashRecipeScreenBaseY, visible);
+            _model.NotifyChanged();
+        }
+
+        public void SetCashRecipeScreenMode(bool visible, bool mikeEspresso)
+        {
+            MovePointGroupByY(_cashRecipeScreenPoints, _cashRecipeScreenBaseY, visible);
+            MovePointGroupByY(_cashRecipeLattePoints, _cashRecipeLatteBaseY, visible && !mikeEspresso);
+            MovePointGroupByY(_cashRecipeEspressoPoints, _cashRecipeEspressoBaseY, visible && mikeEspresso);
+            _model.NotifyChanged();
+        }
+
+        public void SetFridgeOpenAnimation(bool visible, double progress)
+        {
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+
+            MovePointGroupByY(_fridgeInteriorPoints, _fridgeInteriorBaseY, visible || progress > 0.01);
+            MovePointGroupByY(_fridgeMilkPackPoints, _fridgeMilkPackBaseY, visible || progress > 0.01);
+
+            // Книжное открытие: дверь вращается вокруг петли, а не уезжает плоской панелью.
+            double hingeX = -248.6;
+            double hingeZ = 592.8;
+            double angle = 1.45 * progress;
+            double cos = Math.Cos(angle);
+            double sin = Math.Sin(angle);
+
+            for (int i = 0; i < _fridgeDoorPoints.Count; i++)
+            {
+                int index = _fridgeDoorPoints[i];
+                if (index < 0 || index >= _model.Points.Count || i >= _fridgeDoorBaseX.Count)
+                    continue;
+
+                double relX = _fridgeDoorBaseX[i] - hingeX;
+                double relZ = _fridgeDoorBaseZ[i] - hingeZ;
+                _model.Points[index].X = hingeX + relX * cos - relZ * sin;
+                _model.Points[index].Y = _fridgeDoorBaseY[i];
+                _model.Points[index].Z = hingeZ + relX * sin + relZ * cos;
+            }
+
             _model.NotifyChanged();
         }
 
@@ -3115,6 +3322,9 @@ namespace игра_для_проги.Controller
 
         public void SetClientVisible(bool visible)
         {
+            if (_clientVisible == visible)
+                return;
+
             _clientVisible = visible;
 
             if (!visible)
@@ -3135,6 +3345,8 @@ namespace игра_для_проги.Controller
             double dx = worldX - _clientWorldX;
             double dz = worldZ - _clientWorldZ;
             double moveDistance = Math.Sqrt(dx * dx + dz * dz);
+            double yawDelta = Math.Abs(NormalizeAngleLocal(yaw - _clientYaw));
+            bool transformChanged = moveDistance > 0.0005 || yawDelta > 0.0005;
 
             _clientPrevWorldX = _clientWorldX;
             _clientPrevWorldZ = _clientWorldZ;
@@ -3150,8 +3362,10 @@ namespace игра_для_проги.Controller
             else
             {
                 _clientWalkingNow = false;
-                _clientAnimationPhase += 0.08;
             }
+
+            if (!transformChanged)
+                return;
 
             ApplyClientTransform();
             _model.NotifyChanged();
@@ -3171,6 +3385,9 @@ namespace игра_для_проги.Controller
 
         public void SetMikeVisible(bool visible)
         {
+            if (_mikeVisible == visible)
+                return;
+
             _mikeVisible = visible;
 
             if (!visible)
@@ -3190,6 +3407,9 @@ namespace игра_для_проги.Controller
 
         public void SetMikeWideEyesVisible(bool visible)
         {
+            if (_mikeWideEyesVisible == visible)
+                return;
+
             _mikeWideEyesVisible = visible;
             ApplyMikeTransform();
             _model.NotifyChanged();
@@ -3197,6 +3417,9 @@ namespace игра_для_проги.Controller
 
         public void SetMikeHeadTrackingActive(bool active)
         {
+            if (_mikeHeadTrackingActive == active)
+                return;
+
             _mikeHeadTrackingActive = active;
             ApplyMikeTransform();
             _model.NotifyChanged();
@@ -3205,7 +3428,11 @@ namespace игра_для_проги.Controller
         public void SetMikeHoldingOrderVisible(bool visible)
         {
             _mikeHandOrderVisible = visible;
+            if (!visible)
+                HideMikeHoldingOrderAttachmentPoints();
             ApplyMikeTransform();
+            if (!visible)
+                HideMikeHoldingOrderAttachmentPoints();
             _model.NotifyChanged();
         }
 
@@ -3227,6 +3454,8 @@ namespace игра_для_проги.Controller
                 progress = 0;
             if (progress > 1)
                 progress = 1;
+            if (Math.Abs(_mikeSmileProgress - progress) < 0.0001)
+                return;
 
             _mikeSmileProgress = progress;
             ApplyMikeTransform();
@@ -3238,6 +3467,9 @@ namespace игра_для_проги.Controller
             double dx = worldX - _mikeWorldX;
             double dz = worldZ - _mikeWorldZ;
             double moveDistance = Math.Sqrt(dx * dx + dz * dz);
+            double yawDelta = Math.Abs(NormalizeAngleLocal(yaw - _mikeYaw));
+            bool transformChanged = moveDistance > 0.0005 || yawDelta > 0.0005;
+            bool requiresContinuousRefresh = _mikeHeadTrackingActive || _mikeWideEyesVisible || _mikeHandOrderVisible || _mikeSpeaking || _mikeWalkingNow || _mikeSmileProgress > 0.0001;
 
             _mikeWorldX = worldX;
             _mikeWorldZ = worldZ;
@@ -3247,12 +3479,15 @@ namespace игра_для_проги.Controller
             {
                 _mikeWalkingNow = true;
                 _mikeAnimationPhase += moveDistance * 0.18;
+                requiresContinuousRefresh = true;
             }
             else
             {
                 _mikeWalkingNow = false;
-                _mikeAnimationPhase += 0.08;
             }
+
+            if (!transformChanged && !requiresContinuousRefresh)
+                return;
 
             ApplyMikeTransform();
             _model.NotifyChanged();
@@ -3934,6 +4169,15 @@ namespace игра_для_проги.Controller
             AddMikeBlockLocal(8.7, sy(-2.0), -4.3, 10.1, sy(12.0), 5.9, hoodieDark, FaceLayer.SmallDetail);      // right side panel
             AddMikeBlockLocal(-9.6, sy(9.2), -4.0, -4.6, sy(13.2), 6.5, hoodieDark, FaceLayer.SmallDetail);      // left shoulder yoke
             AddMikeBlockLocal(4.6, sy(9.2), -4.0, 9.6, sy(13.2), 6.5, hoodieDark, FaceLayer.SmallDetail);        // right shoulder yoke
+            // More realistic shoulders: sloped pads, seam strips and small folds so the arms do not look glued on.
+            AddMikeQuadLocal(-17.2, sy(8.8), -4.7, -10.0, sy(13.8), -4.2, -8.9, sy(12.3), 6.7, -15.6, sy(7.6), 6.0, hoodie, FaceLayer.SmallDetail);
+            AddMikeQuadLocal(10.0, sy(13.8), -4.2, 17.2, sy(8.8), -4.7, 15.6, sy(7.6), 6.0, 8.9, sy(12.3), 6.7, hoodie, FaceLayer.SmallDetail);
+            AddMikeQuadLocal(-16.8, sy(8.0), 5.7, -9.3, sy(12.1), 6.7, -8.3, sy(10.8), 8.0, -15.1, sy(6.7), 7.2, hoodieLight, FaceLayer.SmallDetail);
+            AddMikeQuadLocal(9.3, sy(12.1), 6.7, 16.8, sy(8.0), 5.7, 15.1, sy(6.7), 7.2, 8.3, sy(10.8), 8.0, hoodieLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-15.6, sy(6.6), 6.4, -9.8, sy(7.8), 8.15, hoodieDark, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(9.8, sy(6.6), 6.4, 15.6, sy(7.8), 8.15, hoodieDark, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.6, sy(4.2), 6.0, -13.3, sy(10.0), 8.0, stitch, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(13.3, sy(4.2), 6.0, 14.6, sy(10.0), 8.0, stitch, FaceLayer.SmallDetail);
             AddMikeBlockLocal(-5.8, sy(-6.8), 5.8, 5.8, sy(9.8), 8.2, printBg, FaceLayer.SmallDetail);           // front panel under print
             AddMikeBlockLocal(-4.8, sy(-13.4), 6.0, 4.8, sy(-6.6), 7.92, hoodieDark, FaceLayer.SmallDetail);     // kangaroo pocket base
             AddMikeBlockLocal(-4.0, sy(-12.6), 7.98, 4.0, sy(-7.4), 8.34, hoodieLight, FaceLayer.SmallDetail);   // pocket front
@@ -3977,43 +4221,66 @@ namespace игра_для_проги.Controller
             AddMikeBlockLocal(11.8, sy(-29.6), -3.4, 15.2, sy(-24.5), 4.2, skin, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             // left palm
-            AddMikeBlockLocal(-15.0, sy(-33.4), -2.8, -11.6, sy(-29.6), 4.6, skinLight, FaceLayer.SmallDetail);
-            AddMikeBlockLocal(-14.7, sy(-32.8), -2.2, -12.0, sy(-30.2), 3.8, handShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-15.4, sy(-34.2), -2.6, -11.8, sy(-29.4), 1.4, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.9, sy(-33.4), -2.2, -12.2, sy(-30.0), 1.0, handShade, FaceLayer.SmallDetail);
             // left thumb
-            AddMikeBlockLocal(-16.2, sy(-32.8), -1.0, -14.6, sy(-29.8), 2.0, skinShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-16.0, sy(-32.8), -1.6, -14.8, sy(-30.0), 0.8, skinShade, FaceLayer.SmallDetail);
             // left fingers
-            AddMikeBlockLocal(-14.9, sy(-35.0), 3.0, -14.1, sy(-33.1), 4.8, fingerShade, FaceLayer.SmallDetail);
-            AddMikeBlockLocal(-14.0, sy(-35.2), 3.1, -13.2, sy(-33.2), 4.9, fingerShade, FaceLayer.SmallDetail);
-            AddMikeBlockLocal(-13.1, sy(-35.1), 3.0, -12.3, sy(-33.1), 4.8, fingerShade, FaceLayer.SmallDetail);
-            AddMikeBlockLocal(-12.2, sy(-34.8), 2.9, -11.5, sy(-33.0), 4.7, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.9, sy(-36.2), -1.8, -14.1, sy(-33.2), 1.0, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.0, sy(-36.4), -1.7, -13.2, sy(-33.3), 1.1, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-13.1, sy(-36.3), -1.8, -12.3, sy(-33.2), 1.0, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-12.2, sy(-36.0), -1.8, -11.5, sy(-33.1), 0.9, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.85, sy(-34.85), 4.82, -14.22, sy(-34.45), 5.08, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-13.95, sy(-35.05), 4.92, -13.32, sy(-34.65), 5.18, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-13.05, sy(-34.95), 4.82, -12.42, sy(-34.55), 5.08, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-12.15, sy(-34.65), 4.72, -11.62, sy(-34.25), 4.98, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-14.55, sy(-31.60), 4.62, -12.25, sy(-31.20), 4.96, fingerShade, FaceLayer.SmallDetail);
             // right palm
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(11.6, sy(-33.4), -2.8, 15.0, sy(-29.6), 4.6, skinLight, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(11.8, sy(-34.2), -2.6, 15.4, sy(-29.4), 1.4, skinLight, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(12.0, sy(-32.8), -2.2, 14.7, sy(-30.2), 3.8, handShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(12.2, sy(-33.4), -2.2, 14.9, sy(-30.0), 1.0, handShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             // right thumb
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(14.6, sy(-32.8), -1.0, 16.2, sy(-29.8), 2.0, skinShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(14.8, sy(-32.8), -1.6, 16.0, sy(-30.0), 0.8, skinShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             // right fingers
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(14.1, sy(-35.0), 3.0, 14.9, sy(-33.1), 4.8, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(14.1, sy(-36.2), -1.8, 14.9, sy(-33.2), 1.0, fingerShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(13.2, sy(-35.2), 3.1, 14.0, sy(-33.2), 4.9, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(13.2, sy(-36.4), -1.7, 14.0, sy(-33.3), 1.1, fingerShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(12.3, sy(-35.1), 3.0, 13.1, sy(-33.1), 4.8, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(12.3, sy(-36.3), -1.8, 13.1, sy(-33.2), 1.0, fingerShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
             mikeRightLowerArmSegmentStart = _model.Points.Count;
-            AddMikeBlockLocal(11.5, sy(-34.8), 2.9, 12.2, sy(-33.0), 4.7, fingerShade, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(11.5, sy(-36.0), -1.8, 12.2, sy(-33.1), 0.9, fingerShade, FaceLayer.SmallDetail);
+            RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
+            // right fingernails and palm line details, registered with the bent hand so the order-holding pose stays correct.
+            mikeRightLowerArmSegmentStart = _model.Points.Count;
+            AddMikeBlockLocal(14.22, sy(-34.85), 4.82, 14.85, sy(-34.45), 5.08, skinLight, FaceLayer.SmallDetail);
+            RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
+            mikeRightLowerArmSegmentStart = _model.Points.Count;
+            AddMikeBlockLocal(13.32, sy(-35.05), 4.92, 13.95, sy(-34.65), 5.18, skinLight, FaceLayer.SmallDetail);
+            RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
+            mikeRightLowerArmSegmentStart = _model.Points.Count;
+            AddMikeBlockLocal(12.42, sy(-34.95), 4.82, 13.05, sy(-34.55), 5.08, skinLight, FaceLayer.SmallDetail);
+            RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
+            mikeRightLowerArmSegmentStart = _model.Points.Count;
+            AddMikeBlockLocal(11.62, sy(-34.65), 4.72, 12.15, sy(-34.25), 4.98, skinLight, FaceLayer.SmallDetail);
+            RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
+            mikeRightLowerArmSegmentStart = _model.Points.Count;
+            AddMikeBlockLocal(12.25, sy(-31.60), 4.62, 14.55, sy(-31.20), 4.96, fingerShade, FaceLayer.SmallDetail);
             RegisterLocalPoints(mikeRightLowerArmSegmentStart, _model.Points.Count, _mikeBentArmPoints, _mikeBentArmLocalX, _mikeBentArmLocalY, _mikeBentArmLocalZ);
 
             // neck and head
             AddMikeBlockLocal(-2.8, sy(14.0), -2.4, 2.8, sy(19.0), 3.6, skinShade, FaceLayer.SmallDetail);
             AddMikeBlockLocal(-7.0, sy(19.0), -4.0, 7.0, sy(33.4), 6.2, skin, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-5.8, sy(31.8), -3.2, 5.8, sy(35.2), 5.2, skin, FaceLayer.SmallDetail);
+            AddMikeBlockLocal(-4.4, sy(34.2), -2.2, 4.4, sy(36.0), 4.3, skinShade, FaceLayer.SmallDetail);
             AddMikeBlockLocal(-6.0, sy(17.8), 4.3, 6.0, sy(31.0), 7.2, skinLight, FaceLayer.SmallDetail);
             // small fixed chin fill only; no large jaw overlays, so the chin no longer stretches during the smile
             AddMikeBlockLocal(-2.7, sy(17.2), 7.22, 2.7, sy(18.7), 7.58, skinLight, FaceLayer.SmallDetail);
@@ -4031,6 +4298,11 @@ namespace игра_для_проги.Controller
             // fuller male hairstyle — unified volumetric upper skull block so it does not split at different angles
             AddMikeBlockLocal(-7.8, sy(30.8), -5.0, 7.8, sy(36.1), 4.6, hairDark, FaceLayer.SmallDetail);       // upper skull hair block only, no forehead bangs
             AddMikeBlockLocal(-5.9, sy(35.2), -4.0, 5.9, sy(39.6), 3.9, hairDark, FaceLayer.SmallDetail);       // rounded top cap
+            AddMikeBlockLocal(-4.5, sy(38.4), -3.2, 4.5, sy(40.7), 3.1, hairDark, FaceLayer.SmallDetail);       // softer narrow crown
+            AddMikeBlockLocal(-7.0, sy(33.6), -5.5, -4.8, sy(37.4), 3.9, hair, FaceLayer.SmallDetail);          // left rounded crown corner
+            AddMikeBlockLocal(4.8, sy(33.6), -5.5, 7.0, sy(37.4), 3.9, hair, FaceLayer.SmallDetail);            // right rounded crown corner
+            AddMikeBlockLocal(-5.1, sy(32.3), 4.35, 5.1, sy(35.8), 5.35, hair, FaceLayer.SmallDetail);          // rounded front hair line
+            AddMikeBlockLocal(-3.9, sy(31.4), 5.0, 3.9, sy(33.7), 5.82, hairDark, FaceLayer.SmallDetail);       // soft forehead arc
             AddMikeBlockLocal(-7.6, sy(26.0), -8.6, 7.6, sy(32.8), -2.8, hair, FaceLayer.SmallDetail);          // back upper
             AddMikeBlockLocal(-7.2, sy(20.0), -8.8, 7.2, sy(27.8), -3.0, hair, FaceLayer.SmallDetail);          // back mid
             AddMikeBlockLocal(-6.8, sy(14.8), -8.2, 6.8, sy(22.2), -2.7, hairDark, FaceLayer.SmallDetail);      // nape fill
@@ -4322,6 +4594,8 @@ namespace игра_для_проги.Controller
                 color,
                 layer);
             RegisterLocalPoints(startIndex, _model.Points.Count, _tiaHoldingCupPoints, _tiaHoldingCupLocalX, _tiaHoldingCupLocalY, _tiaHoldingCupLocalZ);
+            for (int i = startIndex; i < _model.Points.Count; i++)
+                _model.Points[i].Y = -10000.0;
         }
 
         private void AddClientAttachmentQuadLocal(
@@ -4534,6 +4808,26 @@ namespace игра_для_проги.Controller
             }
         }
 
+        private void HideMikeHoldingOrderAttachmentPoints()
+        {
+            for (int i = 0; i < _mikeHandOrderPoints.Count; i++)
+            {
+                int index = _mikeHandOrderPoints[i];
+                if (index >= 0 && index < _model.Points.Count)
+                    _model.Points[index].Y = -10000.0;
+            }
+        }
+
+        private void HideTiaHoldingCupAttachmentPoints()
+        {
+            for (int i = 0; i < _tiaHoldingCupPoints.Count; i++)
+            {
+                int index = _tiaHoldingCupPoints[i];
+                if (index >= 0 && index < _model.Points.Count)
+                    _model.Points[index].Y = -10000.0;
+            }
+        }
+
         private void ApplyAttachmentTransform(
             List<int> points,
             List<double> localX,
@@ -4583,12 +4877,12 @@ namespace игра_для_проги.Controller
                 double rawHeadOffset = NormalizeAngleLocal(targetYaw - _mikeYaw);
                 // Вернули более спокойный прежний поворот головы: не выкручиваем слишком сильно,
                 // но вся голова до шеи двигается цельно.
-                headYawOffset = rawHeadOffset * 0.74;
-                headYawOffset = Clamp(headYawOffset, -0.60, 0.60);
+                headYawOffset = rawHeadOffset * 1.18;
+                headYawOffset = Clamp(headYawOffset, -1.08, 1.08);
 
                 // Зрачки компенсируют остаток поворота, чтобы взгляд оставался направлен на игрока.
                 double residualEyeAngle = rawHeadOffset - headYawOffset;
-                pupilLookOffset = Clamp(residualEyeAngle * 2.35, -1.20, 1.20);
+                pupilLookOffset = Clamp(residualEyeAngle * 2.10, -1.35, 1.35);
             }
             double headOffsetCos = Math.Cos(headYawOffset);
             double headOffsetSin = Math.Sin(headYawOffset);
@@ -4765,8 +5059,8 @@ namespace игра_для_проги.Controller
             double smileCenterX = (smileMinX + smileMaxX) * 0.5;
             const double smileYOffset = -0.85;
             double smoothSmileProgress = _mikeSmileProgress * _mikeSmileProgress * (3.0 - 2.0 * _mikeSmileProgress);
-            const double smileStartScale = 0.44;
-            double smileFinalScale = 0.44 + 0.62 * smoothSmileProgress;
+            const double smileStartScale = 0.52;
+            double smileFinalScale = 0.52 + 0.68 * smoothSmileProgress;
             double startMouthY = ScaleMikeLocalY(19.48);
             double startMouthZ = 8.42;
             for (int i = 0; i < _mikeSmilePoints.Count; i++)
@@ -6838,6 +7132,12 @@ namespace игра_для_проги.Controller
 
         public void RotateCamera(double yawDelta, double pitchDelta)
         {
+            if (Math.Abs(yawDelta) < 0.000001 && Math.Abs(pitchDelta) < 0.000001)
+                return;
+
+            double oldYaw = Camera.Yaw;
+            double oldPitch = Camera.Pitch;
+
             Camera.Yaw += yawDelta;
 
             if (Camera.Yaw > Math.PI * 2)
@@ -6847,6 +7147,13 @@ namespace игра_для_проги.Controller
                 Camera.Yaw += Math.PI * 2;
 
             Camera.Pitch = Clamp(Camera.Pitch + pitchDelta, -0.85, 0.85);
+            if (Math.Abs(Camera.Yaw - oldYaw) > 0.000001 || Math.Abs(Camera.Pitch - oldPitch) > 0.000001)
+                _model.NotifyChanged();
+        }
+
+        public void SetCameraAtTimePassSavePoint()
+        {
+            Camera.Set(82, 0, 486, Math.PI);
             _model.NotifyChanged();
         }
 
